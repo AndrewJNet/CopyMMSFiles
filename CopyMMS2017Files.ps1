@@ -13,15 +13,7 @@
 $baseLocation = 'C:\Conferences\MMS'
 Clear-Host
 $MMSDates='2017-05-14', '2017-05-15', '2017-05-16','2017-05-17','2017-05-18'
-
-$web = Invoke-WebRequest 'https://mms2017.sched.com/login' -SessionVariable mms
-$c = $host.UI.PromptForCredential('Sched Credentials', 'Enter Credentials', '', '')
-$form = $web.Forms[1]
-$form.fields['username'] = $c.UserName
-$form.fields['password'] = $c.GetNetworkCredential().Password
-"Loggin in..."
 $web = Invoke-WebRequest 'https://mms2017.sched.com/login' -WebSession $mms -Method POST -Body $form.Fields
-if(-Not ($web.InputFields.FindByName("login"))) {
 
     ForEach ($Date in $MMSDates) {
         "Checking day '{0}' for downloads" -f $Date
@@ -61,6 +53,3 @@ if(-Not ($web.InputFields.FindByName("login"))) {
             $i++
         }
     }
-} else {
-    "Login failed. Exiting script."
-}
