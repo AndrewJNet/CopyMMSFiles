@@ -7,7 +7,8 @@
 #           http://www.andrewj.net           #
 #           Evan Yeung                       #
 #           http://www.forevanyeung.com      #
-#                                            #
+#           Chris Kibble                     #
+#           http://www.christopherkibble.com #
 ##############################################
 
 $baseLocation = 'C:\Conferences\MMS'
@@ -35,6 +36,7 @@ if(-Not ($web.InputFields.FindByName("login"))) {
         $i = 0
         While($i -lt $eventsIndex.Count) {
             $eventTitle = $eventsIndex[$i][1]
+            $eventTitle = $eventTitle -replace "[^A-Za-z0-9-_. ]", ""
             $eventTitle = $eventTitle.Trim()
             $eventTitle = $eventTitle -replace "\W+", "_"
 
@@ -42,16 +44,33 @@ if(-Not ($web.InputFields.FindByName("login"))) {
                 if($_.href -like "*hosted_files*") { 
                     $downloadPath = $baseLocation + '\mms2018\' + $Date + '\' + $eventTitle
                     $filename = $_.href
-                    $filename = $filename.substring(39)
-                    $filename = $filename.Replace('%20',' ')
+                    $filename = $filename.substring(40)
+                    
+                    # Replace HTTP Encoding Characters (e.g. %20) with the proper equivalent.
+                    $filename = [System.Web.HttpUtility]::UrlDecode($filename)
+                    
+                    # Replace non-standard characters
+                    $filename = $filename -replace "[^A-Za-z0-9\.\-_ ]", ""
+                                        
                     $outputFilePath = $downloadPath + '\' + $filename
+
+                    # Reduce Total Path to 255 characters.
+                    $outputFilePathLen = $outputFilePath.Length
+
+                    If($outputFilePathLen -ge 255) { 
+                        $fileExt = [System.IO.Path]::GetExtension($outputFilePath)
+                        $newFileName = $outputFilePath.Substring(0,$($outputFilePathLen - $fileExt.Length))
+                        $newFileName = $newFileName.Substring(0, $(255 - $fileExt.Length)).trim()
+                        $newFileName = "$newFileName$fileExt"
+                        $outputFilePath = $newFileName
+                    }
+
                     if((Test-Path -Path $($downloadPath)) -eq $false) { New-Item -ItemType Directory -Force -Path $downloadPath | Out-Null }
                     if((Test-Path -Path $outputFilePath) -eq $false)
                     {
                         "...attempting to download '{0}'" -f $filename
                         Invoke-WebRequest -Uri $_.href -OutFile $outputfilepath -WebSession $mms
                         Unblock-File $outputFilePath
-                        $stopit = $true
                     }
                 } 
             }
@@ -59,7 +78,7 @@ if(-Not ($web.InputFields.FindByName("login"))) {
             $i++
         }
     }
-    else {
-        "Login failed. Exiting script."
-    }
-} 
+} else {
+    "Login failed. Exiting script."
+}
+
