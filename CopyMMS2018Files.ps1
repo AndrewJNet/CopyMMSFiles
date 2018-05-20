@@ -9,10 +9,13 @@
 #           http://www.forevanyeung.com      #
 #           Chris Kibble                     #
 #           http://www.christopherkibble.com #
+#           Jon Warnken                      #
+#           http://www.mrbodean.net          #
 ##############################################
 
 $baseLocation = 'C:\Conferences\MMS'
 Clear-Host
+Add-Type -AssemblyName System.Web
 $MMSDates='2018-05-13','2018-05-14','2018-05-15','2018-05-16','2018-05-17'
 $web = Invoke-WebRequest 'https://mms2018.sched.com/login' -SessionVariable mms
 $c = $host.UI.PromptForCredential('Sched Credentials', 'Enter Credentials', '', '')
