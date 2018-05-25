@@ -1,4 +1,6 @@
-These scripts are used to download the session files that were made available during [Midwest Management Summit 2015-2017](http://mmsmoa.com). If you are involved in configuration/infrastructure/identity/mobile device management primarily in the Microsoft space, consider attending this event!
+# CopyMMSFiles
+
+These scripts are used to download the session files that were made available during [Midwest Management Summit 2015-2018](http://mmsmoa.com). If you are involved in configuration/infrastructure/identity/mobile device management primarily in the Microsoft space, consider attending this event!
 
 Thank you to [Duncan Russell](http://www.sysadmintechnotes.com/) for providing the initial script for MMS 2014 and helping me test the changes I made for it to work with the more recent conferences.
 

@@ -11,18 +11,31 @@
 #           http://www.christopherkibble.com #
 #           Jon Warnken                      #
 #           http://www.mrbodean.net          #
+#                                            #
 ##############################################
 
 $baseLocation = 'C:\Conferences\MMS'
 Clear-Host
 Add-Type -AssemblyName System.Web
-$MMSDates='2018-05-13','2018-05-14','2018-05-15','2018-05-16','2018-05-17'
 $web = Invoke-WebRequest 'https://mms2018.sched.com/login' -SessionVariable mms
 $c = $host.UI.PromptForCredential('Sched Credentials', 'Enter Credentials', '', '')
 $form = $web.Forms[1]
 $form.fields['username'] = $c.UserName
 $form.fields['password'] = $c.GetNetworkCredential().Password
 "Logging in..."
+
+$mmsHome = Invoke-WebRequest 'https://mms2018.sched.org/' -WebSession $mms
+
+$htmlDate = $mmsHome.ParsedHtml.IHTMLDocument3_GetElementById('sched-sidebar-filters-dates')
+$htmlPopoverBody = $htmlDate.getElementsByClassName('popover')
+$htmlDateList = $htmlPopoverBody[0].getElementsByTagName('li')
+
+$MMSDates = @()
+$htmlDateList | ForEach-Object { 
+    out-null -InputObject  $($_.innerHTML -match "\d{4}-\d{2}-\d{2}")
+    $MMSDates += $matches[0]
+}
+
 $web = Invoke-WebRequest 'https://mms2018.sched.com/login' -WebSession $mms -Method POST -Body $form.Fields
 if(-Not ($web.InputFields.FindByName("login"))) {
     ForEach ($Date in $MMSDates) {
