@@ -14,6 +14,15 @@
   Creation Date:  10/15/2019
   Purpose/Change: Consolidated past years' script into one script
 
+  Original author (2015 script): Duncan Russell - http://www.sysadmintechnotes.com
+  Edits made by:
+    Evan Yeung - https://www.forevanyeung.com
+    Chris Kibble - https://www.christopherkibble.com
+    Jon Warnken - https://www.mrbodean.net
+    Oliver Baddeley - Edited for Desert Edition
+
+
+
 .EXAMPLE
   .\Get-MMSSessionContent.ps1
 
@@ -28,25 +37,11 @@
   .\Get-MMSSessionContent.ps1 -All $True
 
   Downloads all MMS session content from all years to C:\Conferences\MMS\
+
+.LINK
+  Project URL - https://github.com/AndrewJNet/CopyMMSFiles
 #>
 
-
-##############################################
-#                                            #
-# File:     Get-MMSSessionContent.ps1        #
-# Author:   Duncan Russell                   #
-#           http://www.sysadmintechnotes.com #
-# Edited:   Andrew Johnson                   #
-#           http://www.andrewj.net           #
-#           Evan Yeung                       #
-#           http://www.forevanyeung.com      #
-#           Chris Kibble                     #
-#           http://www.christopherkibble.com #
-#           Jon Warnken                      #
-#           http://www.mrbodean.net          #
-#           Oliver Baddeley Edited For       #
-#           Desert Edition                   #
-##############################################
 
 Param(
     $DownloadLocation = "C:\Conferences\MMS\",
@@ -56,7 +51,6 @@ Param(
 
 if ($All -eq $true) {
     $ConferenceYears = @('2015', '2016', '2017', '2018', 'de2018', '2019', 'jazz')
-    Write-Output $ConferenceYears
 }
 
 $c = $host.UI.PromptForCredential('Sched Credentials', 'Enter Credentials', '', '')
@@ -69,7 +63,10 @@ foreach ($year in $ConferenceYears) {
     $form = $web.Forms[1]
     $form.fields['username'] = $c.UserName
     $form.fields['password'] = $c.GetNetworkCredential().Password
+    $SessionDownloadPath = $DownloadLocation + '\mms' + $Year
+
     "Logging in to $SchedBaseURL"
+
 
     $mmsHome = Invoke-WebRequest $SchedBaseURL -WebSession $mms
 
@@ -85,6 +82,7 @@ foreach ($year in $ConferenceYears) {
 
     $web = Invoke-WebRequest $SchedLoginURL -WebSession $mms -Method POST -Body $form.Fields
     if (-Not ($web.InputFields.FindByName("login"))) {
+        Write-Output "Downloaded content can be found in $SessionDownloadPath"
         ForEach ($Date in $MMSDates) {
             "Checking day '{0}' for downloads" -f $Date
 
