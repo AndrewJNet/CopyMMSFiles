@@ -44,13 +44,13 @@
 
 
 Param(
-  $DownloadLocation = "C:\Conferences\MMS\",
+  $DownloadLocation = "C:\Conferences\MMS",
   $ConferenceYears = (Get-Date).year,
   $All = $false
 )
 
 $PublicContentYears = @('2015', '2016', '2017')
-$PrivateContentYears = @('2018', 'de2018', '2019', 'jazz')
+$PrivateContentYears = @('2018', 'de2018', '2019', 'jazz', 'miami')
 
 if ($All -eq $true) {
   $ConferenceYears = $PublicContentYears + $PrivateContentYears
@@ -90,18 +90,16 @@ if ($ConferenceYearsPrivate.count -gt 0) {
       out-null -InputObject  $($_.innerHTML -match "\d{4}-\d{2}-\d{2}")
       $MMSDates += $matches[0]
     }
-
     $web = Invoke-WebRequest $SchedLoginURL -WebSession $mms -Method POST -Body $form.Fields
     if (-Not ($web.InputFields.FindByName("login"))) {
       Write-Output "Downloaded content can be found in $SessionDownloadPath"
       ForEach ($Date in $MMSDates) {
         "Checking day '{0}' for downloads" -f $Date
-
         $sched = Invoke-WebRequest -Uri $($SchedBaseURL + "/" + $Date + "/list/descriptions") -WebSession $mms
 
         $links = $sched.Links
         $eventsIndex = @()
-        $links | ForEach-Object { if (($_.href -like "*/event/*") -and ($_.innerText -notlike "here")) {
+        $links | ForEach-Object { if (($_.href -like "event/*") -and ($_.innerText -notlike "here")) {
             $eventsIndex += (, ($links.IndexOf($_), $_.innerText))
           } }
         $i = 0
@@ -111,7 +109,6 @@ if ($ConferenceYearsPrivate.count -gt 0) {
           $eventTitle = $eventTitle.Trim()
           $eventTitle = $eventTitle -replace "\W+", "_"
           $links[$eventsIndex[$i][0]..$(if ($i -eq $eventsIndex.Count - 1) { $links.Count - 1 } else { $eventsIndex[$i + 1][0] })] | ForEach-Object {
-
             if ($_.href -like "*hosted_files*") {
               $downloadPath = $DownloadLocation + '\mms' + $Year + '\' + $Date + '\' + $eventTitle
               $filename = $_.href
@@ -184,7 +181,7 @@ foreach ($year in $ConferenceYearsPublic) {
 
     $links = $sched.Links
     $eventsIndex = @()
-    $links | ForEach-Object { if (($_.href -like "*/event/*") -and ($_.innerText -notlike "here")) {
+    $links | ForEach-Object { if (($_.href -like "event/*") -and ($_.innerText -notlike "here")) {
         $eventsIndex += (, ($links.IndexOf($_), $_.innerText))
       } }
     $i = 0
