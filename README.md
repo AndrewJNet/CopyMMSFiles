@@ -8,6 +8,6 @@ Thank you to [Evan Yeung](https://github.com/forevanyeung) for cleaning up proce
 
 Thank you to [Chris Kibble](https://www.christopherkibble.com) for continued testing and improvements made to the script.
 
-Thank you to [Benjamin Reynolds](https://sqlbenjamin.wordpress.com) loads of great changes and additional testing. 
+Thank you to [Benjamin Reynolds](https://sqlbenjamin.wordpress.com) for loads of great changes and additional testing. 
 
 This script is provided as-is with no guarantees. It was tested with PowerShell 5.1 on Windows 10. It does not currently function in PowerShell 6/7.
