@@ -1,16 +1,16 @@
 # CopyMMSFiles
 
-These scripts are used to download the session files that were made available during [Midwest Management Summit 2015-2022](http://mmsmoa.com). If you are involved in configuration/infrastructure/identity/mobile device management primarily in the Microsoft space, consider attending this event!
+These scripts are used to download the session files that were made available during [Midwest Management Summit 2015-2023](http://mmsmoa.com). If you are involved in configuration/infrastructure/identity/mobile device management primarily in the Microsoft space, consider attending this event!
 
 ## Usage
 
-For content just from 2022 in a custom directory (default is C:\Conferences\MMS\$conferenceyear), use the following:
+For content just from 2023 in a custom directory (default is C:\Conferences\MMS\$conferenceyear), use the following:
 
-``` .\Get-MMSSessionContent.ps1 -DownloadLocation "C:\Temp\MMS" -ConferenceId 2022atmoa```
+``` .\Get-MMSSessionContent.ps1 -DownloadLocation "C:\Temp\MMS" -ConferenceId 2023atmoa```
 
 For multiple years:
 
-``` .\Get-MMSSessionContent.ps1 -ConferenceList @('2015','2022atmoa')```
+``` .\Get-MMSSessionContent.ps1 -ConferenceList @('2015','2023atmoa')```
 
 To exclude session details:
 

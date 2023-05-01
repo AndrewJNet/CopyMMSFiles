@@ -59,9 +59,9 @@
 Param(
   [Parameter(Mandatory=$false)][string]$DownloadLocation = "C:\Conferences\MMS", # could validate this: [ValidateScript({(Test-Path -Path (Split-Path $PSItem))})]
   [Parameter(Mandatory=$true,ParameterSetName='SingleEvent')]
-  [ValidateSet("2015","2016","2017","2018","de2018","2019","jazz","miami","2022atmoa")]
+  [ValidateSet("2015","2016","2017","2018","de2018","2019","jazz","miami","2022atmoa","2023atmoa")]
   [string]$ConferenceId,
-  [Parameter(Mandatory=$true,ParameterSetName='MultipleEvents',HelpMessage="This needs to be a list or array of conference ids/years!")]
+  [Parameter(Mandatory=$true,ParameterSetName='MultipleEvents',HelpMessage="This needs to bwe a list or array of conference ids/years!")]
   [System.Collections.Generic.List[string]]$ConferenceList,
   [Parameter(Mandatory=$true,ParameterSetName='AllEvents')][switch]$All,
   [Parameter(Mandatory=$false)][switch]$ExcludeSessionDetails
@@ -72,7 +72,7 @@ $DownloadLocation = $DownloadLocation.Trim('\');
 
 ## Setup
 $PublicContentYears = @('2015', '2016', '2017');
-$PrivateContentYears = @('2018', 'de2018', '2019', 'jazz', 'miami','2022atmoa');
+$PrivateContentYears = @('2018', 'de2018', '2019', 'jazz', 'miami','2022atmoa','2023atmoa');
 $ConferenceYears = New-Object -TypeName System.Collections.Generic.List[string];
 [int]$PublicYearsCount = $PublicContentYears.Count;
 [int]$PrivateYearsCount = $PrivateContentYears.Count;
