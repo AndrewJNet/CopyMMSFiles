@@ -34,7 +34,8 @@
                                                        text file containing details of the event
     04/05/2023    1.3        Jorge Suarez              Modified login body string for downloading session content
     11/06/2023    1.4        Nathan Ziehnert           Adds support for PowerShell 7.x, revamps the webscraping bit to be cross platform (no html parser in core). 
-                                                       Sets default directory for non-Microsoft OS to be $HOME\Downloads\MMSContent
+                                                       Sets default directory for non-Microsoft OS to be $HOME\Downloads\MMSContent. Ugly basic HTML parser for the
+                                                       session info file, but it should suffice for now.
 
 .EXAMPLE
   .\Get-MMSSessionContent.ps1 -ConferenceList @('2015','2018');
@@ -74,23 +75,37 @@ Param(
 
 function Invoke-BasicHTMLParser ($html) {
   $html = $html.Replace("<br>","`r`n").Replace("<br/>","`r`n").Replace("<br />","`r`n") # replace <br> with new line
-  
+
+  # Speaker Spacing
+  $html = $html.Replace("<div class=`"sched-person-session`">","`r`n`r`n")
+
   # Link parsing
   $linkregex = '(?<texttoreplace><a .*? href="(?<link>.*?)".*?>(?<content>.*?)<\/a>)'
   $links = [regex]::Matches($html, $linkregex)
   foreach($l in $links)
   {
-    $html = $html.Replace($l.Groups['texttoreplace'].Value, " [$($l.Groups['content'].Value)]($($l.Groups['link'].Value))")
+    if(-not $l.Groups['link'].Value.StartsWith("http")){$link = "$SchedBaseURL/$($l.Groups['link'].Value)"}else{$link = $l.Groups['link'].Value}
+    $html = $html.Replace($l.Groups['texttoreplace'].Value, " [$($l.Groups['content'].Value)]($link)")
+  }
+
+  # List Parsing
+  $listRegex = '(?<texttoreplace><ul[^>]?>(?<content>.*?)<\/ul>)'
+  $lists = [regex]::Matches($html, $listRegex)
+  foreach($l in $lists)
+  {
+    $content = $l.Groups['content'].Value.Replace("<li>","`r`n* ").Replace("</li>","")
+    $html = $html.Replace($l.Groups['texttoreplace'].Value, $content)
   }
 
   # General Cleanup
-  $html = $html.Replace("<strong></strong>","") # replace that stupid strong tag they put at the beginning of every session
-  $html = $html.Replace("<div>","").Replace("</div>","")
+  $html = $html.replace("&rarr;", "")
+  $html = $html -replace '<div[^>]+>', "`r`n"
+  $html = $html -replace '<[^>]+>', '' # Strip all HTML tags
 
   ## Future revisions
   # do something about <b> / <i> / <strong> / etc...
+  # maybe a converter to markdown
   
-
   return $html
 }
 
