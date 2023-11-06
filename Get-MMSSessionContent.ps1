@@ -60,7 +60,6 @@
 .LINK
   Project URL - https://github.com/AndrewJNet/CopyMMSFiles
 #>
-
 [cmdletbinding(PositionalBinding = $false)]
 Param(
   [Parameter(Mandatory = $false)][string]$DownloadLocation = "C:\Conferences\MMS", # could validate this: [ValidateScript({(Test-Path -Path (Split-Path $PSItem))})]
@@ -80,8 +79,8 @@ function Invoke-BasicHTMLParser ($html) {
   $html = $html.Replace("<div class=`"sched-person-session`">","`r`n`r`n")
 
   # Link parsing
-  $linkregex = '(?<texttoreplace><a .*? href="(?<link>.*?)".*?>(?<content>.*?)<\/a>)'
-  $links = [regex]::Matches($html, $linkregex)
+  $linkregex = '(?<texttoreplace><a.*?href="(?<link>.*?)".*?>(?<content>.*?)<\/a>)'
+  $links = [regex]::Matches($html, $linkregex, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
   foreach($l in $links)
   {
     if(-not $l.Groups['link'].Value.StartsWith("http")){$link = "$SchedBaseURL/$($l.Groups['link'].Value)"}else{$link = $l.Groups['link'].Value}
@@ -90,7 +89,7 @@ function Invoke-BasicHTMLParser ($html) {
 
   # List Parsing
   $listRegex = '(?<texttoreplace><ul[^>]?>(?<content>.*?)<\/ul>)'
-  $lists = [regex]::Matches($html, $listRegex)
+  $lists = [regex]::Matches($html, $listRegex, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
   foreach($l in $lists)
   {
     $content = $l.Groups['content'].Value.Replace("<li>","`r`n* ").Replace("</li>","")
@@ -121,8 +120,8 @@ else
 $DownloadLocation = $DownloadLocation.Trim('\')
 
 ## Setup
-$PublicContentYears = @('2015', '2016', '2017')
-$PrivateContentYears = @('2018', 'de2018', '2019', 'jazz', 'miami', '2022atmoa', '2023atmoa','2023miami') # how much of this is still private content?
+$PublicContentYears = @('2015', '2016', '2017', '2019', 'jazz', 'miami', '2022atmoa', '2023atmoa')
+$PrivateContentYears = @('2018','de2018','2023miami')
 $ConferenceYears = New-Object -TypeName System.Collections.Generic.List[string]
 [int]$PublicYearsCount = $PublicContentYears.Count
 [int]$PrivateYearsCount = $PrivateContentYears.Count
@@ -212,8 +211,8 @@ $ConferenceYears | ForEach-Object -Process {
       $eventobj = $links[($eventsList[$i])]
 
       # Get/Fix the Session Title:
-      $titleRegex = '<a href="(?<url>.*?)".*?>(?<title>.*?)<\/a>'
-      $titleMatches = [regex]::Matches($eventobj.outerHTML.Replace("`r","").Replace("`n",""), $titleRegex)
+      $titleRegex = '<a.*?href="(?<url>.*?)".*?>(?<title>.*?)<\/a>'
+      $titleMatches = [regex]::Matches($eventobj.outerHTML.Replace("`r","").Replace("`n",""), $titleRegex, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
       [string]$eventTitle = $titleMatches.Groups[0].Groups['title'].Value.Trim()
       [string]$eventUrl = $titleMatches.Groups[0].Groups['url'].Value.Trim()
 
@@ -232,12 +231,12 @@ $ConferenceYears | ForEach-Object -Process {
         $sessionLinkInfo = (Invoke-WebRequest -Uri $($SchedBaseURL + "/" + $eventUrl) -WebSession $mms).Content.Replace("`r","").Replace("`n","")
 
         $descriptionPattern = '<div class="tip-description">(?<description>.*?)<hr style="clear:both"'
-        $description = [regex]::Matches($sessionLinkInfo, $descriptionPattern)
-        if($description){$sessionInfoText += "$(Invoke-BasicHTMLParser -html $description.Groups[0].Groups['description'].Value)`r`n`r`n"}
+        $description = [regex]::Matches($sessionLinkInfo, $descriptionPattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+        if($description.Count -gt 0){$sessionInfoText += "$(Invoke-BasicHTMLParser -html $description.Groups[0].Groups['description'].Value)`r`n`r`n"}
 
         $rolesPattern = "<div class=`"tip-roles`">(?<roles>.*?)<br class='s-clr'"
-        $roles = [regex]::Matches($sessionLinkInfo, $rolesPattern)
-        if($roles){$sessionInfoText += "$(Invoke-BasicHTMLParser -html $roles.Groups[0].Groups['roles'].Value)`r`n`r`n"}
+        $roles = [regex]::Matches($sessionLinkInfo, $rolesPattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+        if($roles.Count -gt 0){$sessionInfoText += "$(Invoke-BasicHTMLParser -html $roles.Groups[0].Groups['roles'].Value)`r`n`r`n"}
 
         if ((Test-Path -Path $($downloadPath)) -eq $false) { New-Item -ItemType Directory -Force -Path $downloadPath | Out-Null }
         Out-File -FilePath "$downloadPath\Session Info.txt" -InputObject $sessionInfoText -Force -Encoding default
