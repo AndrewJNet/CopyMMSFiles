@@ -270,7 +270,7 @@ $ConferenceYears | ForEach-Object -Process {
             Invoke-WebRequest -Uri $download.href -OutFile $outputfilepath -WebSession $mms
             if($win){Unblock-File $outputFilePath}
           } catch {
-            Write-Output ".................$($PSItem.Exception) for '$($_.href)'...moving to next file..."
+            Write-Output ".................$($PSItem.Exception) for '$($download.href)'...moving to next file..."
           }
         }
       } # end procesing downloads
