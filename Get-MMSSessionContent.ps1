@@ -80,7 +80,6 @@ function Invoke-BasicHTMLParser ($html) {
   $links = [regex]::Matches($html, $linkregex)
   foreach($l in $links)
   {
-    if($l.Groups['texttoreplace'].Value -like "*benzing*"){Wait-Debugger}
     $html = $html.Replace($l.Groups['texttoreplace'].Value, " [$($l.Groups['content'].Value)]($($l.Groups['link'].Value))")
   }
 
