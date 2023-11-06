@@ -80,12 +80,17 @@ function Invoke-BasicHTMLParser ($html) {
   $links = [regex]::Matches($html, $linkregex)
   foreach($l in $links)
   {
+    if($l.Groups['texttoreplace'].Value -like "*benzing*"){Wait-Debugger}
     $html = $html.Replace($l.Groups['texttoreplace'].Value, " [$($l.Groups['content'].Value)]($($l.Groups['link'].Value))")
   }
 
+  # General Cleanup
+  $html = $html.Replace("<strong></strong>","") # replace that stupid strong tag they put at the beginning of every session
+  $html = $html.Replace("<div>","").Replace("</div>","")
+
   ## Future revisions
   # do something about <b> / <i> / <strong> / etc...
-  $html = $html.Replace("<strong></strong>","")
+  
 
   return $html
 }
@@ -212,11 +217,11 @@ $ConferenceYears | ForEach-Object -Process {
       if(-not $ExcludeSessionDetails) {
         $sessionLinkInfo = (Invoke-WebRequest -Uri $($SchedBaseURL + "/" + $eventUrl) -WebSession $mms).Content.Replace("`r","").Replace("`n","")
 
-        $descriptionPattern = '<div class="tip-description">(?<description>.*?)<\/div>'
+        $descriptionPattern = '<div class="tip-description">(?<description>.*?)<hr style="clear:both"'
         $description = [regex]::Matches($sessionLinkInfo, $descriptionPattern)
         if($description){$sessionInfoText += "$(Invoke-BasicHTMLParser -html $description.Groups[0].Groups['description'].Value)`r`n`r`n"}
 
-        $rolesPattern = '<div class="tip-roles">(?<roles>.*?)<\/div>'
+        $rolesPattern = "<div class=`"tip-roles`">(?<roles>.*?)<br class='s-clr'"
         $roles = [regex]::Matches($sessionLinkInfo, $rolesPattern)
         if($roles){$sessionInfoText += "$(Invoke-BasicHTMLParser -html $roles.Groups[0].Groups['roles'].Value)`r`n`r`n"}
 
