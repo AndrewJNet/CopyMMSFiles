@@ -1,4 +1,4 @@
-# CopyMMSFiles
+# Get-MMSSessionContent
 
 These scripts are used to download the session files that were made available during [Midwest Management Summit 2015-2023](http://mmsmoa.com). If you are involved in configuration/infrastructure/identity/mobile device management primarily in the Microsoft space, consider attending this event!
 
