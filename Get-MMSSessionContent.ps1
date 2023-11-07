@@ -38,14 +38,14 @@
                                                        session info file, but it should suffice for now.
 
 .EXAMPLE
-  .\Get-MMSSessionContent.ps1 -ConferenceList @('2015','2018');
+  .\Get-MMSSessionContent.ps1 -ConferenceList @('2023atmoa','2023miami');
 
-  Downloads all MMS session content from 2015 and 2018 to C:\Conferences\MMS\
+  Downloads all MMS session content from 2023 at MOA and 2023 in Miami to C:\Conferences\MMS\
 
 .EXAMPLE
-  .\Get-MMSSessionContent.ps1 -DownloadLocation "C:\Temp\MMS" -ConferenceId 2015
+  .\Get-MMSSessionContent.ps1 -DownloadLocation "C:\Temp\MMS" -ConferenceId 2023atmoa
 
-  Downloads all MMS session content from 2015 to C:\Temp\MMS\
+  Downloads all MMS session content from 2023 at MOA to C:\Temp\MMS\
 
 .EXAMPLE
   .\Get-MMSSessionContent.ps1 -All
@@ -107,7 +107,8 @@ function Invoke-BasicHTMLParser ($html) {
   
   return $html
 }
-
+## Hide Invoke-WebRequest progress bar. There's a bug that doesn't clear the bar after a request is finished. 
+$ProgressPreference = "SilentlyContinue"
 ## Determine OS... sorta
 if($PSEdition -eq "Desktop" -or $isWindows){$win = $true}
 else
