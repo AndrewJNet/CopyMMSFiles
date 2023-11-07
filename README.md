@@ -18,12 +18,16 @@ To exclude session details:
 
 ## Acknowledgements
 
-Thank you to [Duncan Russell](http://www.sysadmintechnotes.com/) for providing the initial script for MMS 2014 and helping me test the changes I made for it to work with the more recent conferences.
+Thank you to:
+- [Duncan Russell](http://www.sysadmintechnotes.com/) for providing the initial script for MMS 2014 and helping me test the changes I made for it to work with the more recent conferences.
+- [Evan Yeung](https://github.com/forevanyeung) for cleaning up processing and file naming.
+- [Chris Kibble](https://www.christopherkibble.com) for continued testing and improvements made to the script.
+- [Benjamin Reynolds](https://sqlbenjamin.wordpress.com) for loads of great changes and additional testing.
+- [Nathan Ziehnert](https://z-nerd.com/) for adding PowerShell 7 support
+- As well as edits by [Jon Warnken](https://github.com/mrbodean), [Oliver Baddeley](https://github.com/BaddMann), and [Jorge Suarez](https://github.com/jorgeasaurus)
 
-Thank you to [Evan Yeung](https://github.com/forevanyeung) for cleaning up processing and file naming.
+This script is provided as-is with no guarantees. As of November 6, 2023, version 1.4 was tested with no errors using the following configurations:
 
-Thank you to [Chris Kibble](https://www.christopherkibble.com) for continued testing and improvements made to the script.
-
-Thank you to [Benjamin Reynolds](https://sqlbenjamin.wordpress.com) for loads of great changes and additional testing. 
-
-This script is provided as-is with no guarantees. It was tested with PowerShell 5.1 on Windows 10. It does not currently function in PowerShell 6/7.
+- Windows 11 23H2 using Windows PowerShell 5.1
+- Windows 11 23H2 using PowerShell 7.3.9
+- Ubuntu using PowerShell 7.3
