@@ -1,16 +1,16 @@
 # Get-MMSSessionContent
 
-These scripts are used to download the session files that were made available during [Midwest Management Summit 2015-2023](http://mmsmoa.com). If you are involved in configuration/infrastructure/identity/mobile device management primarily in the Microsoft space, consider attending this event!
+These scripts are used to download the session files that were made available during [Midwest Management Summit 2015-2024](http://mmsmoa.com). If you are involved in configuration/infrastructure/identity/mobile device management primarily in the Microsoft space, consider attending this event!
 
 ## Usage
 
-For content just from 2023 in a custom directory (default is C:\Conferences\MMS\$conferenceyear), use the following:
+For content just from 2024 in a custom directory (default is C:\Conferences\MMS\$conferenceyear), use the following:
 
-``` .\Get-MMSSessionContent.ps1 -DownloadLocation "C:\Temp\MMS" -ConferenceId 2023atmoa```
+``` .\Get-MMSSessionContent.ps1 -DownloadLocation "C:\Temp\MMS" -ConferenceId 2024atmoa```
 
 For multiple years:
 
-``` .\Get-MMSSessionContent.ps1 -ConferenceList @('2015','2023atmoa')```
+``` .\Get-MMSSessionContent.ps1 -ConferenceList @('2015','2024atmoa')```
 
 To exclude session details:
 
@@ -26,8 +26,8 @@ Thank you to:
 - [Nathan Ziehnert](https://z-nerd.com/) for adding PowerShell 7 support
 - As well as edits by [Jon Warnken](https://github.com/mrbodean), [Oliver Baddeley](https://github.com/BaddMann), and [Jorge Suarez](https://github.com/jorgeasaurus)
 
-This script is provided as-is with no guarantees. As of November 6, 2023, version 1.4 was tested with no errors using the following configurations:
+This script is provided as-is with no guarantees. As of April 28, 2024, version 1.5 was tested with no errors using the following configurations:
 
 - Windows 11 23H2 using Windows PowerShell 5.1
-- Windows 11 23H2 using PowerShell 7.3.9
-- Ubuntu using PowerShell 7.3
+- Windows 11 23H2 using PowerShell 7.4.2
+- Ubuntu using PowerShell 7.4.2

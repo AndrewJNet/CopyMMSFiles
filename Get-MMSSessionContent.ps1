@@ -9,9 +9,9 @@
 .OUTPUTS
   All session content from the specified years.
 .NOTES
-  Version:        1.4
+  Version:        1.5
   Author:         Andrew Johnson
-  Modified Date:  11/06/2023
+  Modified Date:  04/28/2024
   Purpose/Change: Added logic to only authenticate if content for the specified sessions has not been made public
 
   Original author (2015 script): Duncan Russell - http://www.sysadmintechnotes.com
@@ -36,16 +36,17 @@
     11/06/2023    1.4        Nathan Ziehnert           Adds support for PowerShell 7.x, revamps the webscraping bit to be cross platform (no html parser in core). 
                                                        Sets default directory for non-Microsoft OS to be $HOME\Downloads\MMSContent. Ugly basic HTML parser for the
                                                        session info file, but it should suffice for now.
+    04/28/2024    1.5        Andrew Johnson            Updated and tested to include 2024 at MOA
 
 .EXAMPLE
-  .\Get-MMSSessionContent.ps1 -ConferenceList @('2023atmoa','2023miami');
+  .\Get-MMSSessionContent.ps1 -ConferenceList @('2024atmoa','2023miami');
 
-  Downloads all MMS session content from 2023 at MOA and 2023 in Miami to C:\Conferences\MMS\
+  Downloads all MMS session content from 2024 at MOA and 2023 in Miami to C:\Conferences\MMS\
 
 .EXAMPLE
-  .\Get-MMSSessionContent.ps1 -DownloadLocation "C:\Temp\MMS" -ConferenceId 2023atmoa
+  .\Get-MMSSessionContent.ps1 -DownloadLocation "C:\Temp\MMS" -ConferenceId 2024atmoa
 
-  Downloads all MMS session content from 2023 at MOA to C:\Temp\MMS\
+  Downloads all MMS session content from 2024 at MOA to C:\Temp\MMS\
 
 .EXAMPLE
   .\Get-MMSSessionContent.ps1 -All
@@ -64,7 +65,7 @@
 Param(
   [Parameter(Mandatory = $false)][string]$DownloadLocation = "C:\Conferences\MMS", # could validate this: [ValidateScript({(Test-Path -Path (Split-Path $PSItem))})]
   [Parameter(Mandatory = $true, ParameterSetName = 'SingleEvent')]
-  [ValidateSet("2015", "2016", "2017", "2018", "de2018", "2019", "jazz", "miami", "2022atmoa", "2023atmoa","2023miami")]
+  [ValidateSet("2015", "2016", "2017", "2018", "de2018", "2019", "jazz", "miami", "2022atmoa", "2023atmoa","2023miami","2024atmoa")]
   [string]$ConferenceId,
   [Parameter(Mandatory = $true, ParameterSetName = 'MultipleEvents', HelpMessage = "This needs to bwe a list or array of conference ids/years!")]
   [System.Collections.Generic.List[string]]$ConferenceList,
@@ -122,7 +123,7 @@ $DownloadLocation = $DownloadLocation.Trim('\')
 
 ## Setup
 $PublicContentYears = @('2015', '2016', '2017', '2019', 'jazz', 'miami', '2022atmoa', '2023atmoa')
-$PrivateContentYears = @('2018','de2018','2023miami')
+$PrivateContentYears = @('2018','de2018','2023miami','2024atmoa')
 $ConferenceYears = New-Object -TypeName System.Collections.Generic.List[string]
 [int]$PublicYearsCount = $PublicContentYears.Count
 [int]$PrivateYearsCount = $PrivateContentYears.Count
