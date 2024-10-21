@@ -9,10 +9,10 @@
 .OUTPUTS
   All session content from the specified years.
 .NOTES
-  Version:        1.5
+  Version:        1.6
   Author:         Andrew Johnson
-  Modified Date:  04/28/2024
-  Purpose/Change: Added logic to only authenticate if content for the specified sessions has not been made public
+  Modified Date:  10/20/2024
+  Purpose/Change: Updated for MMS Flamingo Edition
 
   Original author (2015 script): Duncan Russell - http://www.sysadmintechnotes.com
   Edits made by:
