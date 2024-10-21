@@ -26,8 +26,8 @@ Thank you to:
 - [Nathan Ziehnert](https://z-nerd.com/) for adding PowerShell 7 support
 - As well as edits by [Jon Warnken](https://github.com/mrbodean), [Oliver Baddeley](https://github.com/BaddMann), and [Jorge Suarez](https://github.com/jorgeasaurus)
 
-This script is provided as-is with no guarantees. As of April 28, 2024, version 1.5 was tested with no errors using the following configurations:
+This script is provided as-is with no guarantees. As of October 20, 2024, version 1.6 was tested with no errors using the following configurations:
 
-- Windows 11 23H2 using Windows PowerShell 5.1
-- Windows 11 23H2 using PowerShell 7.4.2
-- Ubuntu using PowerShell 7.4.2
+- Windows 11 24H2 using Windows PowerShell 5.1
+- Windows 11 24H2 using PowerShell 7.4.5
+- Ubuntu using PowerShell 7.4.5
