@@ -9,9 +9,9 @@
 .OUTPUTS
   All session content from the specified years.
 .NOTES
-  Version:        1.6
+  Version:        1.6.1
   Author:         Andrew Johnson
-  Modified Date:  10/20/2024
+  Modified Date:  10/26/2024
   Purpose/Change: Updated for MMS Flamingo Edition
 
   Original author (2015 script): Duncan Russell - http://www.sysadmintechnotes.com
@@ -23,6 +23,8 @@
     Benjamin Reynolds - https://sqlbenjamin.wordpress.com/
     Jorge Suarez - https://github.com/jorgeasaurus
     Nathan Ziehnert - https://z-nerd.com
+    Nathan Ziehnert - https://garit.pro
+
 
   TODO:
   [ ] Create a version history in these notes? Something like this:
@@ -37,7 +39,8 @@
                                                        Sets default directory for non-Microsoft OS to be $HOME\Downloads\MMSContent. Ugly basic HTML parser for the
                                                        session info file, but it should suffice for now.
     04/28/2024    1.5        Andrew Johnson            Updated and tested to include 2024 at MOA
-    10/20/2024    1.6        Andrew Johnson            Updated and tested to include MMS Flamingo Edition 
+    10/20/2024    1.6        Andrew Johnson            Updated and tested to include MMS Flamingo Edition
+    10/26/2024    1.6.1      Piotr Gardy               Adds functionality to re-download and check if file was updated on server
 
 .EXAMPLE
   .\Get-MMSSessionContent.ps1 -ConferenceList @('2024atmoa','2024fll');
@@ -66,35 +69,34 @@
 Param(
   [Parameter(Mandatory = $false)][string]$DownloadLocation = "C:\Conferences\MMS", # could validate this: [ValidateScript({(Test-Path -Path (Split-Path $PSItem))})]
   [Parameter(Mandatory = $true, ParameterSetName = 'SingleEvent')]
-  [ValidateSet("2015", "2016", "2017", "2018", "de2018", "2019", "jazz", "miami", "2022atmoa", "2023atmoa","2023miami","2024atmoa","2024fll")]
+  [ValidateSet("2015", "2016", "2017", "2018", "de2018", "2019", "jazz", "miami", "2022atmoa", "2023atmoa", "2023miami", "2024atmoa", "2024fll")]
   [string]$ConferenceId,
   [Parameter(Mandatory = $true, ParameterSetName = 'MultipleEvents', HelpMessage = "This needs to bwe a list or array of conference ids/years!")]
   [System.Collections.Generic.List[string]]$ConferenceList,
   [Parameter(Mandatory = $true, ParameterSetName = 'AllEvents')][switch]$All,
-  [Parameter(Mandatory = $false)][switch]$ExcludeSessionDetails
+  [Parameter(Mandatory = $false)][switch]$ExcludeSessionDetails,
+  [Parameter(Mandatory = $false)][switch]$ReDownloadIsHashIsDifferent
 )
 
 function Invoke-BasicHTMLParser ($html) {
-  $html = $html.Replace("<br>","`r`n").Replace("<br/>","`r`n").Replace("<br />","`r`n") # replace <br> with new line
+  $html = $html.Replace("<br>", "`r`n").Replace("<br/>", "`r`n").Replace("<br />", "`r`n") # replace <br> with new line
 
   # Speaker Spacing
-  $html = $html.Replace("<div class=`"sched-person-session`">","`r`n`r`n")
+  $html = $html.Replace("<div class=`"sched-person-session`">", "`r`n`r`n")
 
   # Link parsing
   $linkregex = '(?<texttoreplace><a.*?href="(?<link>.*?)".*?>(?<content>.*?)<\/a>)'
   $links = [regex]::Matches($html, $linkregex, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
-  foreach($l in $links)
-  {
-    if(-not $l.Groups['link'].Value.StartsWith("http")){$link = "$SchedBaseURL/$($l.Groups['link'].Value)"}else{$link = $l.Groups['link'].Value}
+  foreach ($l in $links) {
+    if (-not $l.Groups['link'].Value.StartsWith("http")) { $link = "$SchedBaseURL/$($l.Groups['link'].Value)" }else { $link = $l.Groups['link'].Value }
     $html = $html.Replace($l.Groups['texttoreplace'].Value, " [$($l.Groups['content'].Value)]($link)")
   }
 
   # List Parsing
   $listRegex = '(?<texttoreplace><ul[^>]?>(?<content>.*?)<\/ul>)'
   $lists = [regex]::Matches($html, $listRegex, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
-  foreach($l in $lists)
-  {
-    $content = $l.Groups['content'].Value.Replace("<li>","`r`n* ").Replace("</li>","")
+  foreach ($l in $lists) {
+    $content = $l.Groups['content'].Value.Replace("<li>", "`r`n* ").Replace("</li>", "")
     $html = $html.Replace($l.Groups['texttoreplace'].Value, $content)
   }
 
@@ -112,11 +114,10 @@ function Invoke-BasicHTMLParser ($html) {
 ## Hide Invoke-WebRequest progress bar. There's a bug that doesn't clear the bar after a request is finished. 
 $ProgressPreference = "SilentlyContinue"
 ## Determine OS... sorta
-if($PSEdition -eq "Desktop" -or $isWindows){$win = $true}
-else
-{ 
+if ($PSEdition -eq "Desktop" -or $isWindows) { $win = $true }
+else { 
   $win = $false
-  if($DownloadLocation -eq "C:\Conferences\MMS"){$DownloadLocation = "$HOME\Downloads\MMSContent"}
+  if ($DownloadLocation -eq "C:\Conferences\MMS") { $DownloadLocation = "$HOME\Downloads\MMSContent" }
 }
 
 ## Make sure there aren't any trailing backslashes:
@@ -124,7 +125,7 @@ $DownloadLocation = $DownloadLocation.Trim('\')
 
 ## Setup
 $PublicContentYears = @('2015', '2016', '2017', '2019', 'jazz', 'miami', '2022atmoa', '2023atmoa')
-$PrivateContentYears = @('2018','de2018','2023miami','2024atmoa','2024fll')
+$PrivateContentYears = @('2018', 'de2018', '2023miami', '2024atmoa', '2024fll')
 $ConferenceYears = New-Object -TypeName System.Collections.Generic.List[string]
 [int]$PublicYearsCount = $PublicContentYears.Count
 [int]$PrivateYearsCount = $PrivateContentYears.Count
@@ -138,14 +139,17 @@ if ($All) {
     $ConferenceYears.Add($PrivateContentYears[$i])
   }
   Remove-Variable -Name i -ErrorAction SilentlyContinue
-} elseif ($PsCmdlet.ParameterSetName -eq 'SingleEvent') {
+}
+elseif ($PsCmdlet.ParameterSetName -eq 'SingleEvent') {
   $ConferenceYears.Add($ConferenceId)
-} else {
+}
+else {
   $ConfListCount = $ConferenceList.Count
   for ($i = 0; $i -lt $ConfListCount; $i++) {
     if ($ConferenceList[$i] -in ($PublicContentYears + $PrivateContentYears)) {
       $ConferenceYears.Add($ConferenceList[$i])
-    } else {
+    }
+    else {
       Write-Output "The Conference Id '$($ConferenceList[$i])' is not valid. Item will be skipped."
     }
   }
@@ -167,7 +171,7 @@ $ConferenceYears | ForEach-Object -Process {
   $SchedLoginURL = $SchedBaseURL + "/login"
   Add-Type -AssemblyName System.Web
   $web = Invoke-WebRequest $SchedLoginURL -SessionVariable mms
-   ## Connect to Sched
+  ## Connect to Sched
 
   if ($creds) {
     #$form = $web.Forms[1]
@@ -183,7 +187,8 @@ $ConferenceYears | ForEach-Object -Process {
     # SEND IT
     $web = Invoke-WebRequest $SchedLoginURL -SessionVariable mms -Method POST -Body $body
 
-  } else {
+  }
+  else {
     $web = Invoke-WebRequest $SchedLoginURL -SessionVariable mms
   }
 
@@ -207,15 +212,14 @@ $ConferenceYears | ForEach-Object -Process {
     }
     $eventCount = $eventsList.Count
 
-    for($i = 0; $i -lt $eventCount; $i++)
-    {
+    for ($i = 0; $i -lt $eventCount; $i++) {
       [int]$linkIndex = $eventsList[$i]
       [int]$nextLinkIndex = $eventsList[$i + 1]
       $eventobj = $links[($eventsList[$i])]
 
       # Get/Fix the Session Title:
       $titleRegex = '<a.*?href="(?<url>.*?)".*?>(?<title>.*?)<\/a>'
-      $titleMatches = [regex]::Matches($eventobj.outerHTML.Replace("`r","").Replace("`n",""), $titleRegex, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+      $titleMatches = [regex]::Matches($eventobj.outerHTML.Replace("`r", "").Replace("`n", ""), $titleRegex, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
       [string]$eventTitle = $titleMatches.Groups[0].Groups['title'].Value.Trim()
       [string]$eventUrl = $titleMatches.Groups[0].Groups['url'].Value.Trim()
 
@@ -230,23 +234,23 @@ $ConferenceYears | ForEach-Object -Process {
       $downloadPath = $SessionDownloadPath + "\" + $downloadTitle
 
       ## Get session info if required:
-      if(-not $ExcludeSessionDetails) {
-        $sessionLinkInfo = (Invoke-WebRequest -Uri $($SchedBaseURL + "/" + $eventUrl) -WebSession $mms).Content.Replace("`r","").Replace("`n","")
+      if (-not $ExcludeSessionDetails) {
+        $sessionLinkInfo = (Invoke-WebRequest -Uri $($SchedBaseURL + "/" + $eventUrl) -WebSession $mms).Content.Replace("`r", "").Replace("`n", "")
 
         $descriptionPattern = '<div class="tip-description">(?<description>.*?)<hr style="clear:both"'
         $description = [regex]::Matches($sessionLinkInfo, $descriptionPattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
-        if($description.Count -gt 0){$sessionInfoText += "$(Invoke-BasicHTMLParser -html $description.Groups[0].Groups['description'].Value)`r`n`r`n"}
+        if ($description.Count -gt 0) { $sessionInfoText += "$(Invoke-BasicHTMLParser -html $description.Groups[0].Groups['description'].Value)`r`n`r`n" }
 
         $rolesPattern = "<div class=`"tip-roles`">(?<roles>.*?)<br class='s-clr'"
         $roles = [regex]::Matches($sessionLinkInfo, $rolesPattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
-        if($roles.Count -gt 0){$sessionInfoText += "$(Invoke-BasicHTMLParser -html $roles.Groups[0].Groups['roles'].Value)`r`n`r`n"}
+        if ($roles.Count -gt 0) { $sessionInfoText += "$(Invoke-BasicHTMLParser -html $roles.Groups[0].Groups['roles'].Value)`r`n`r`n" }
 
         if ((Test-Path -Path $($downloadPath)) -eq $false) { New-Item -ItemType Directory -Force -Path $downloadPath | Out-Null }
         Out-File -FilePath "$downloadPath\Session Info.txt" -InputObject $sessionInfoText -Force -Encoding default
       }
 
-      $downloads = $links[($linkIndex + 1)..($nextLinkIndex - 1)] | Where-Object {$_.href -like "*hosted_files*"} #prefilter
-      foreach($download in $downloads){
+      $downloads = $links[($linkIndex + 1)..($nextLinkIndex - 1)] | Where-Object { $_.href -like "*hosted_files*" } #prefilter
+      foreach ($download in $downloads) {
         $filename = Split-Path $download.href -Leaf
         # Replace HTTP Encoding Characters (e.g. %20) with the proper equivalent.
         $filename = [System.Web.HttpUtility]::UrlDecode($filename)
@@ -268,12 +272,35 @@ $ConferenceYears | ForEach-Object -Process {
         # Download the file
         if ((Test-Path -Path $($downloadPath)) -eq $false) { New-Item -ItemType Directory -Force -Path $downloadPath | Out-Null }
         if ((Test-Path -Path $outputFilePath) -eq $false) {
-          Write-Output "...attempting to download '$filename'"
+          Write-Output "...attempting to download '$filename' because it doesn't exists"
           try {
             Invoke-WebRequest -Uri $download.href -OutFile $outputfilepath -WebSession $mms
-            if($win){Unblock-File $outputFilePath}
-          } catch {
+            if ($win) { Unblock-File $outputFilePath }
+          }
+          catch {
             Write-Output ".................$($PSItem.Exception) for '$($download.href)'...moving to next file..."
+          }
+        }
+        else {
+          if ($ReDownloadIsHashIsDifferent) {
+            Write-Output "...attempting to download '$filename'"
+            $oldHash = (Get-FileHash $outputFilePath).Hash
+            try {
+              Invoke-WebRequest -Uri $download.href -OutFile "$($outputfilepath).new" -WebSession $mms
+              if ($win) { Unblock-File "$($outputfilepath).new" }
+              $NewHash = (Get-FileHash "$($outputfilepath).new").Hash
+              if ($NewHash -ne $oldHash) {
+                Write-Host -ForegroundColor Green " => HASH is different. Keeping new file"
+                Move-Item "$($outputfilepath).new" $outputfilepath -Force
+              }
+              else {
+                Write-Output " => Hash is the same. "
+                Remove-item "$($outputfilepath).new" -Force
+              }
+            }
+            catch {
+              Write-Output ".................$($PSItem.Exception) for '$($download.href)'...moving to next file..."
+            }
           }
         }
       } # end procesing downloads
