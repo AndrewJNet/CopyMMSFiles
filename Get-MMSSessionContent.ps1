@@ -9,9 +9,9 @@
 .OUTPUTS
   All session content from the specified years.
 .NOTES
-  Version:        1.6.1
+  Version:        1.6
   Author:         Andrew Johnson
-  Modified Date:  10/26/2024
+  Modified Date:  10/20/2024
   Purpose/Change: Updated for MMS Flamingo Edition
 
   Original author (2015 script): Duncan Russell - http://www.sysadmintechnotes.com
@@ -23,8 +23,6 @@
     Benjamin Reynolds - https://sqlbenjamin.wordpress.com/
     Jorge Suarez - https://github.com/jorgeasaurus
     Nathan Ziehnert - https://z-nerd.com
-    Piotr Gardy - https://garit.pro
-
 
   TODO:
   [ ] Create a version history in these notes? Something like this:
@@ -39,8 +37,7 @@
                                                        Sets default directory for non-Microsoft OS to be $HOME\Downloads\MMSContent. Ugly basic HTML parser for the
                                                        session info file, but it should suffice for now.
     04/28/2024    1.5        Andrew Johnson            Updated and tested to include 2024 at MOA
-    10/20/2024    1.6        Andrew Johnson            Updated and tested to include MMS Flamingo Edition
-    10/26/2024    1.6.1      Piotr Gardy               Adds functionality to re-download and check if file was updated on server
+    10/20/2024    1.6        Andrew Johnson            Updated and tested to include MMS Flamingo Edition 
 
 .EXAMPLE
   .\Get-MMSSessionContent.ps1 -ConferenceList @('2024atmoa','2024fll');
@@ -272,7 +269,7 @@ $ConferenceYears | ForEach-Object -Process {
         # Download the file
         if ((Test-Path -Path $($downloadPath)) -eq $false) { New-Item -ItemType Directory -Force -Path $downloadPath | Out-Null }
         if ((Test-Path -Path $outputFilePath) -eq $false) {
-          Write-Output "...attempting to download '$filename'"
+          Write-Output "...attempting to download '$filename' because it doesn't exists"
           try {
             Invoke-WebRequest -Uri $download.href -OutFile $outputfilepath -WebSession $mms
             if ($win) { Unblock-File $outputFilePath }
@@ -290,11 +287,11 @@ $ConferenceYears | ForEach-Object -Process {
               if ($win) { Unblock-File "$($outputfilepath).new" }
               $NewHash = (Get-FileHash "$($outputfilepath).new").Hash
               if ($NewHash -ne $oldHash) {
-                Write-Output " => HASH is different. Keeping new file"
+                Write-Host -ForegroundColor Green " => HASH is different. Keeping new file"
                 Move-Item "$($outputfilepath).new" $outputfilepath -Force
               }
               else {
-                Write-Output " => HASH is the same. "
+                Write-Output " => Hash is the same. "
                 Remove-item "$($outputfilepath).new" -Force
               }
             }
