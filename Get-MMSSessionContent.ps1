@@ -272,7 +272,7 @@ $ConferenceYears | ForEach-Object -Process {
         # Download the file
         if ((Test-Path -Path $($downloadPath)) -eq $false) { New-Item -ItemType Directory -Force -Path $downloadPath | Out-Null }
         if ((Test-Path -Path $outputFilePath) -eq $false) {
-          Write-host -ForegroundColor Green "...attempting to download '$filename' because it doesn't exists"
+          Write-host -ForegroundColor Green "...attempting to download '$filename' because it doesn't exist"
           try {
             Invoke-WebRequest -Uri $download.href -OutFile $outputfilepath -WebSession $mms
             if ($win) { Unblock-File $outputFilePath }
