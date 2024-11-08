@@ -24,7 +24,7 @@ Thank you to:
 - [Chris Kibble](https://www.christopherkibble.com) for continued testing and improvements made to the script.
 - [Benjamin Reynolds](https://sqlbenjamin.wordpress.com) for loads of great changes and additional testing.
 - [Nathan Ziehnert](https://z-nerd.com/) for adding PowerShell 7 support
-- [Piotr Gardy](https://github.com/pgardy) for adding file has comparing
+- [Piotr Gardy](https://github.com/pgardy) for adding file hash comparing
 - As well as edits by [Jon Warnken](https://github.com/mrbodean), [Oliver Baddeley](https://github.com/BaddMann), and [Jorge Suarez](https://github.com/jorgeasaurus)
 
 This script is provided as-is with no guarantees. As of October 20, 2024, version 1.6 was tested with no errors using the following configurations:
