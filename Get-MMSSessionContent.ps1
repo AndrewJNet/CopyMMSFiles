@@ -9,10 +9,10 @@
 .OUTPUTS
   All session content from the specified years.
 .NOTES
-  Version:        1.6.1
+  Version:        1.7
   Author:         Andrew Johnson
-  Modified Date:  10/26/2024
-  Purpose/Change: Updated for MMS Flamingo Edition
+  Modified Date:  5/1/2025
+  Purpose/Change: Updated for MMSMOA 2025
 
   Original author (2015 script): Duncan Russell - http://www.sysadmintechnotes.com
   Edits made by:
@@ -41,16 +41,17 @@
     04/28/2024    1.5        Andrew Johnson            Updated and tested to include 2024 at MOA
     10/20/2024    1.6        Andrew Johnson            Updated and tested to include MMS Flamingo Edition
     10/26/2024    1.6.1      Piotr Gardy               Adds functionality to re-download and check if file was updated on server
+    5/1/2025      1.7       Andrew Johnson             Updated and tested to include 2025 at MOA
 
 .EXAMPLE
-  .\Get-MMSSessionContent.ps1 -ConferenceList @('2024atmoa','2024fll');
+  .\Get-MMSSessionContent.ps1 -ConferenceList @('2025atmoa','2024fll');
 
-  Downloads all MMS session content from 2024 at MOA and 2024 Flamingo Edition to C:\Conferences\MMS\
+  Downloads all MMS session content from 2025 at MOA and 2024 Flamingo Edition to C:\Conferences\MMS\
 
 .EXAMPLE
-  .\Get-MMSSessionContent.ps1 -DownloadLocation "C:\Temp\MMS" -ConferenceId 2024fll
+  .\Get-MMSSessionContent.ps1 -DownloadLocation "C:\Temp\MMS" -ConferenceId 2025atmoa
 
-  Downloads all MMS session content from 2024 Flamingo Edition to C:\Temp\MMS\
+  Downloads all MMS session content from 2025 at MOA to C:\Temp\MMS\
 
 .EXAMPLE
   .\Get-MMSSessionContent.ps1 -All
@@ -69,7 +70,7 @@
 Param(
   [Parameter(Mandatory = $false)][string]$DownloadLocation = "C:\Conferences\MMS", # could validate this: [ValidateScript({(Test-Path -Path (Split-Path $PSItem))})]
   [Parameter(Mandatory = $true, ParameterSetName = 'SingleEvent')]
-  [ValidateSet("2015", "2016", "2017", "2018", "de2018", "2019", "jazz", "miami", "2022atmoa", "2023atmoa", "2023miami", "2024atmoa", "2024fll")]
+  [ValidateSet("2015", "2016", "2017", "2018", "de2018", "2019", "jazz", "miami", "2022atmoa", "2023atmoa", "2023miami", "2024atmoa", "2024fll", "2025atmoa")]
   [string]$ConferenceId,
   [Parameter(Mandatory = $true, ParameterSetName = 'MultipleEvents', HelpMessage = "This needs to bwe a list or array of conference ids/years!")]
   [System.Collections.Generic.List[string]]$ConferenceList,
@@ -124,8 +125,8 @@ else {
 $DownloadLocation = $DownloadLocation.Trim('\')
 
 ## Setup
-$PublicContentYears = @('2015', '2016', '2017', '2019', 'jazz', 'miami', '2022atmoa', '2023atmoa')
-$PrivateContentYears = @('2018', 'de2018', '2023miami', '2024atmoa', '2024fll')
+$PublicContentYears = @('2015', '2016', '2017', '2019', 'jazz', 'miami', '2022atmoa', '2023atmoa','2023miami', '2024atmoa', '2024fll')
+$PrivateContentYears = @('2018', 'de2018', '2025atmoa')
 $ConferenceYears = New-Object -TypeName System.Collections.Generic.List[string]
 [int]$PublicYearsCount = $PublicContentYears.Count
 [int]$PrivateYearsCount = $PrivateContentYears.Count
@@ -202,7 +203,6 @@ $ConferenceYears | ForEach-Object -Process {
 
     $sched = Invoke-WebRequest -Uri $($SchedBaseURL + "/list/descriptions") -WebSession $mms
     $links = $sched.Links
-
     # For indexing available downloads later
     $eventsList = New-Object -TypeName System.Collections.Generic.List[int]
     $links | ForEach-Object -Process {
