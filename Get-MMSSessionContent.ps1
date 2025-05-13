@@ -43,6 +43,10 @@
     10/26/2024    1.6.1      Piotr Gardy               Adds functionality to re-download and check if file was updated on server
     5/1/2025      1.7        Andrew Johnson            Updated and tested to include 2025 at MOA
     5/12/2025     1.7.1      Nathan Ziehnert           Fixes a bug where the script hangs on Windows PowerShell on logon for some users
+                                                       Fixes the regex for the session descriptions and speakers (unknown when this broke)
+                                                       Adds throttling to avoid 429 Too Many Requests errors (if request fails due to 429, script waits 20 seconds and retries)
+                                                       Could be improved with exponential backoff, but this is a start - also 20 seconds seemed to work best (15 almost worked)
+                                                       
 
 .EXAMPLE
   .\Get-MMSSessionContent.ps1 -ConferenceList @('2025atmoa','2024fll');
@@ -236,7 +240,18 @@ $ConferenceYears | ForEach-Object -Process {
 
       ## Get session info if required:
       if (-not $ExcludeSessionDetails) {
-        $sessionLinkInfo = (Invoke-WebRequest -Uri $($SchedBaseURL + "/" + $eventUrl) -WebSession $mms -UseBasicParsing).Content.Replace("`r", "").Replace("`n", "")
+        try{
+          #Wait-Debugger
+          $sessionLinkInfo = (Invoke-WebRequest -Uri $($SchedBaseURL + "/" + $eventUrl) -WebSession $mms -UseBasicParsing).Content.Replace("`r", "").Replace("`n", "")
+        }
+        catch {
+          if (($_.Exception.GetType().FullName -eq "System.Net.WebException" -or $_.Exception.GetType().FullName -eq "Microsoft.PowerShell.Commands.HttpResponseException") `
+              -and $_.Exception.Response.StatusCode -eq 429) {
+            Write-Warning "Received 429 Too Many Requests error. Waiting 20 seconds and retrying..."
+            Start-Sleep -Seconds 20
+            $sessionLinkInfo = (Invoke-WebRequest -Uri $($SchedBaseURL + "/" + $eventUrl) -WebSession $mms -UseBasicParsing).Content.Replace("`r", "").Replace("`n", "")
+          }
+        }
 
         $descriptionPattern = '<div class="tip-description">(?<description>.*?)(<div class="tip-roles">|<div class="sched-event-details-timeandplace">)'
         $description = [regex]::Matches($sessionLinkInfo, $descriptionPattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
@@ -275,7 +290,17 @@ $ConferenceYears | ForEach-Object -Process {
         if ((Test-Path -Path $outputFilePath) -eq $false) {
           Write-host -ForegroundColor Green "...attempting to download '$filename' because it doesn't exist"
           try {
-            Invoke-WebRequest -Uri $download.href -OutFile $outputfilepath -WebSession $mms -UseBasicParsing
+            try{
+              Invoke-WebRequest -Uri $download.href -OutFile $outputfilepath -WebSession $mms -UseBasicParsing
+            }
+            catch {
+              if (($_.Exception.GetType().FullName -eq "System.Net.WebException" -or $_.Exception.GetType().FullName -eq "Microsoft.PowerShell.Commands.HttpResponseException") `
+                  -and $_.Exception.Response.StatusCode -eq 429) {
+                Write-Warning "Received 429 Too Many Requests error. Waiting 20 seconds and retrying..."
+                Start-Sleep -Seconds 20
+                Invoke-WebRequest -Uri $download.href -OutFile $outputfilepath -WebSession $mms -UseBasicParsing
+              }
+            }
             if ($win) { Unblock-File $outputFilePath }
           }
           catch {
@@ -287,7 +312,17 @@ $ConferenceYears | ForEach-Object -Process {
             Write-Output "...attempting to download '$filename'"
             $oldHash = (Get-FileHash $outputFilePath).Hash
             try {
-              Invoke-WebRequest -Uri $download.href -OutFile "$($outputfilepath).new" -WebSession $mms -UseBasicParsing
+              try{
+                Invoke-WebRequest -Uri $download.href -OutFile "$($outputfilepath).new" -WebSession $mms -UseBasicParsing
+              }
+              catch {
+                if (($_.Exception.GetType().FullName -eq "System.Net.WebException" -or $_.Exception.GetType().FullName -eq "Microsoft.PowerShell.Commands.HttpResponseException") `
+                    -and $_.Exception.Response.StatusCode -eq 429) {
+                  Write-Warning "Received 429 Too Many Requests error. Waiting 20 seconds and retrying..."
+                  Start-Sleep -Seconds 20
+                  Invoke-WebRequest -Uri $download.href -OutFile "$($outputfilepath).new" -WebSession $mms -UseBasicParsing
+                }
+              }
               if ($win) { Unblock-File "$($outputfilepath).new" }
               $NewHash = (Get-FileHash "$($outputfilepath).new").Hash
               if ($NewHash -ne $oldHash) {
