@@ -238,11 +238,11 @@ $ConferenceYears | ForEach-Object -Process {
       if (-not $ExcludeSessionDetails) {
         $sessionLinkInfo = (Invoke-WebRequest -Uri $($SchedBaseURL + "/" + $eventUrl) -WebSession $mms -UseBasicParsing).Content.Replace("`r", "").Replace("`n", "")
 
-        $descriptionPattern = '<div class="tip-description">(?<description>.*?)<hr style="clear:both"'
+        $descriptionPattern = '<div class="tip-description">(?<description>.*?)(<div class="tip-roles">|<div class="sched-event-details-timeandplace">)'
         $description = [regex]::Matches($sessionLinkInfo, $descriptionPattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
         if ($description.Count -gt 0) { $sessionInfoText += "$(Invoke-BasicHTMLParser -html $description.Groups[0].Groups['description'].Value)`r`n`r`n" }
 
-        $rolesPattern = "<div class=`"tip-roles`">(?<roles>.*?)<br class='s-clr'"
+        $rolesPattern = '<div class="tip-roles">(?<roles>.*?)<div class="sched-file">|<div class="sched-event-details-timeandplace">'
         $roles = [regex]::Matches($sessionLinkInfo, $rolesPattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
         if ($roles.Count -gt 0) { $sessionInfoText += "$(Invoke-BasicHTMLParser -html $roles.Groups[0].Groups['roles'].Value)`r`n`r`n" }
 
