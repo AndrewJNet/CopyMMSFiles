@@ -23,7 +23,7 @@
     Benjamin Reynolds - https://sqlbenjamin.wordpress.com/
     Jorge Suarez - https://github.com/jorgeasaurus
     Nathan Ziehnert - https://z-nerd.com
-    Nathan Ziehnert - https://garit.pro
+    Piotr Gardy - https://garit.pro
 
 
   TODO:
@@ -41,7 +41,8 @@
     04/28/2024    1.5        Andrew Johnson            Updated and tested to include 2024 at MOA
     10/20/2024    1.6        Andrew Johnson            Updated and tested to include MMS Flamingo Edition
     10/26/2024    1.6.1      Piotr Gardy               Adds functionality to re-download and check if file was updated on server
-    5/1/2025      1.7       Andrew Johnson             Updated and tested to include 2025 at MOA
+    5/1/2025      1.7        Andrew Johnson            Updated and tested to include 2025 at MOA
+    5/12/2025     1.7.1      Nathan Ziehnert           Fixes a bug where the script hangs on Windows PowerShell on logon for some users
 
 .EXAMPLE
   .\Get-MMSSessionContent.ps1 -ConferenceList @('2025atmoa','2024fll');
@@ -171,7 +172,7 @@ $ConferenceYears | ForEach-Object -Process {
   $SchedBaseURL = "https://mms" + $Year + ".sched.com"
   $SchedLoginURL = $SchedBaseURL + "/login"
   Add-Type -AssemblyName System.Web
-  $web = Invoke-WebRequest $SchedLoginURL -SessionVariable mms
+  $web = Invoke-WebRequest $SchedLoginURL -SessionVariable mms -UseBasicParsing
   ## Connect to Sched
 
   if ($creds) {
@@ -186,11 +187,11 @@ $ConferenceYears | ForEach-Object -Process {
     $body = "landing_conf=" + [System.Uri]::EscapeDataString($SchedBaseURL) + "&username=" + [System.Uri]::EscapeDataString($username) + "&password=" + [System.Uri]::EscapeDataString($password) + "&login="
 
     # SEND IT
-    $web = Invoke-WebRequest $SchedLoginURL -SessionVariable mms -Method POST -Body $body
+    $web = Invoke-WebRequest $SchedLoginURL -SessionVariable mms -Method POST -Body $body -UseBasicParsing
 
   }
   else {
-    $web = Invoke-WebRequest $SchedLoginURL -SessionVariable mms
+    $web = Invoke-WebRequest $SchedLoginURL -SessionVariable mms -UseBasicParsing
   }
 
   $SessionDownloadPath = $DownloadLocation + '\mms' + $Year
@@ -201,7 +202,7 @@ $ConferenceYears | ForEach-Object -Process {
     ##
     Write-Output "Downloaded content can be found in $SessionDownloadPath"
 
-    $sched = Invoke-WebRequest -Uri $($SchedBaseURL + "/list/descriptions") -WebSession $mms
+    $sched = Invoke-WebRequest -Uri $($SchedBaseURL + "/list/descriptions") -WebSession $mms -UseBasicParsing
     $links = $sched.Links
     # For indexing available downloads later
     $eventsList = New-Object -TypeName System.Collections.Generic.List[int]
@@ -235,7 +236,7 @@ $ConferenceYears | ForEach-Object -Process {
 
       ## Get session info if required:
       if (-not $ExcludeSessionDetails) {
-        $sessionLinkInfo = (Invoke-WebRequest -Uri $($SchedBaseURL + "/" + $eventUrl) -WebSession $mms).Content.Replace("`r", "").Replace("`n", "")
+        $sessionLinkInfo = (Invoke-WebRequest -Uri $($SchedBaseURL + "/" + $eventUrl) -WebSession $mms -UseBasicParsing).Content.Replace("`r", "").Replace("`n", "")
 
         $descriptionPattern = '<div class="tip-description">(?<description>.*?)<hr style="clear:both"'
         $description = [regex]::Matches($sessionLinkInfo, $descriptionPattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
@@ -274,7 +275,7 @@ $ConferenceYears | ForEach-Object -Process {
         if ((Test-Path -Path $outputFilePath) -eq $false) {
           Write-host -ForegroundColor Green "...attempting to download '$filename' because it doesn't exist"
           try {
-            Invoke-WebRequest -Uri $download.href -OutFile $outputfilepath -WebSession $mms
+            Invoke-WebRequest -Uri $download.href -OutFile $outputfilepath -WebSession $mms -UseBasicParsing
             if ($win) { Unblock-File $outputFilePath }
           }
           catch {
@@ -286,7 +287,7 @@ $ConferenceYears | ForEach-Object -Process {
             Write-Output "...attempting to download '$filename'"
             $oldHash = (Get-FileHash $outputFilePath).Hash
             try {
-              Invoke-WebRequest -Uri $download.href -OutFile "$($outputfilepath).new" -WebSession $mms
+              Invoke-WebRequest -Uri $download.href -OutFile "$($outputfilepath).new" -WebSession $mms -UseBasicParsing
               if ($win) { Unblock-File "$($outputfilepath).new" }
               $NewHash = (Get-FileHash "$($outputfilepath).new").Hash
               if ($NewHash -ne $oldHash) {
