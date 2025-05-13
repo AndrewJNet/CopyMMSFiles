@@ -9,10 +9,10 @@
 .OUTPUTS
   All session content from the specified years.
 .NOTES
-  Version:        1.7
+  Version:        1.7.1
   Author:         Andrew Johnson
-  Modified Date:  5/1/2025
-  Purpose/Change: Updated for MMSMOA 2025
+  Modified Date:  5/12/2025
+  Purpose/Change: Fixes a bug for Windows PowerShell
 
   Original author (2015 script): Duncan Russell - http://www.sysadmintechnotes.com
   Edits made by:
