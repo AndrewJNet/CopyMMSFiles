@@ -223,7 +223,7 @@ $ConferenceYears | ForEach-Object -Process {
       $eventobj = $links[($eventsList[$i])]
 
       # Get/Fix the Session Title:
-      $titleRegex = '<a.*?href="(?<url>.*?)".*?>(?<title>.*?)<\/a>'
+      $titleRegex = '<a.*?href="(?<url>.*?)".*?>(?<title>.*?)(<span|<\/a>)'
       $titleMatches = [regex]::Matches($eventobj.outerHTML.Replace("`r", "").Replace("`n", ""), $titleRegex, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
       [string]$eventTitle = $titleMatches.Groups[0].Groups['title'].Value.Trim()
       [string]$eventUrl = $titleMatches.Groups[0].Groups['url'].Value.Trim()
