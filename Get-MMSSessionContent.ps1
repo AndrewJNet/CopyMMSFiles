@@ -9,10 +9,10 @@
 .OUTPUTS
   All session content from the specified years.
 .NOTES
-  Version:        1.7
+  Version:        1.7.1
   Author:         Andrew Johnson
-  Modified Date:  5/1/2025
-  Purpose/Change: Updated for MMSMOA 2025
+  Modified Date:  5/12/2025
+  Purpose/Change: Fixes a bug for Windows PowerShell
 
   Original author (2015 script): Duncan Russell - http://www.sysadmintechnotes.com
   Edits made by:
@@ -23,7 +23,7 @@
     Benjamin Reynolds - https://sqlbenjamin.wordpress.com/
     Jorge Suarez - https://github.com/jorgeasaurus
     Nathan Ziehnert - https://z-nerd.com
-    Nathan Ziehnert - https://garit.pro
+    Piotr Gardy - https://garit.pro
 
 
   TODO:
@@ -41,7 +41,12 @@
     04/28/2024    1.5        Andrew Johnson            Updated and tested to include 2024 at MOA
     10/20/2024    1.6        Andrew Johnson            Updated and tested to include MMS Flamingo Edition
     10/26/2024    1.6.1      Piotr Gardy               Adds functionality to re-download and check if file was updated on server
-    5/1/2025      1.7       Andrew Johnson             Updated and tested to include 2025 at MOA
+    5/1/2025      1.7        Andrew Johnson            Updated and tested to include 2025 at MOA
+    5/12/2025     1.7.1      Nathan Ziehnert           Fixes a bug where the script hangs on Windows PowerShell on logon for some users
+                                                       Fixes the regex for the session descriptions and speakers (unknown when this broke)
+                                                       Adds throttling to avoid 429 Too Many Requests errors (if request fails due to 429, script waits 20 seconds and retries)
+                                                       Could be improved with exponential backoff, but this is a start - also 20 seconds seemed to work best (15 almost worked)
+                                                       
 
 .EXAMPLE
   .\Get-MMSSessionContent.ps1 -ConferenceList @('2025atmoa','2024fll');
@@ -171,7 +176,7 @@ $ConferenceYears | ForEach-Object -Process {
   $SchedBaseURL = "https://mms" + $Year + ".sched.com"
   $SchedLoginURL = $SchedBaseURL + "/login"
   Add-Type -AssemblyName System.Web
-  $web = Invoke-WebRequest $SchedLoginURL -SessionVariable mms
+  $web = Invoke-WebRequest $SchedLoginURL -SessionVariable mms -UseBasicParsing
   ## Connect to Sched
 
   if ($creds) {
@@ -186,11 +191,11 @@ $ConferenceYears | ForEach-Object -Process {
     $body = "landing_conf=" + [System.Uri]::EscapeDataString($SchedBaseURL) + "&username=" + [System.Uri]::EscapeDataString($username) + "&password=" + [System.Uri]::EscapeDataString($password) + "&login="
 
     # SEND IT
-    $web = Invoke-WebRequest $SchedLoginURL -SessionVariable mms -Method POST -Body $body
+    $web = Invoke-WebRequest $SchedLoginURL -SessionVariable mms -Method POST -Body $body -UseBasicParsing
 
   }
   else {
-    $web = Invoke-WebRequest $SchedLoginURL -SessionVariable mms
+    $web = Invoke-WebRequest $SchedLoginURL -SessionVariable mms -UseBasicParsing
   }
 
   $SessionDownloadPath = $DownloadLocation + '\mms' + $Year
@@ -201,7 +206,7 @@ $ConferenceYears | ForEach-Object -Process {
     ##
     Write-Output "Downloaded content can be found in $SessionDownloadPath"
 
-    $sched = Invoke-WebRequest -Uri $($SchedBaseURL + "/list/descriptions") -WebSession $mms
+    $sched = Invoke-WebRequest -Uri $($SchedBaseURL + "/list/descriptions") -WebSession $mms -UseBasicParsing
     $links = $sched.Links
     # For indexing available downloads later
     $eventsList = New-Object -TypeName System.Collections.Generic.List[int]
@@ -218,7 +223,7 @@ $ConferenceYears | ForEach-Object -Process {
       $eventobj = $links[($eventsList[$i])]
 
       # Get/Fix the Session Title:
-      $titleRegex = '<a.*?href="(?<url>.*?)".*?>(?<title>.*?)<\/a>'
+      $titleRegex = '<a.*?href="(?<url>.*?)".*?>(?<title>.*?)(<span|<\/a>)'
       $titleMatches = [regex]::Matches($eventobj.outerHTML.Replace("`r", "").Replace("`n", ""), $titleRegex, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
       [string]$eventTitle = $titleMatches.Groups[0].Groups['title'].Value.Trim()
       [string]$eventUrl = $titleMatches.Groups[0].Groups['url'].Value.Trim()
@@ -235,13 +240,24 @@ $ConferenceYears | ForEach-Object -Process {
 
       ## Get session info if required:
       if (-not $ExcludeSessionDetails) {
-        $sessionLinkInfo = (Invoke-WebRequest -Uri $($SchedBaseURL + "/" + $eventUrl) -WebSession $mms).Content.Replace("`r", "").Replace("`n", "")
+        try{
+          #Wait-Debugger
+          $sessionLinkInfo = (Invoke-WebRequest -Uri $($SchedBaseURL + "/" + $eventUrl) -WebSession $mms -UseBasicParsing).Content.Replace("`r", "").Replace("`n", "")
+        }
+        catch {
+          if (($_.Exception.GetType().FullName -eq "System.Net.WebException" -or $_.Exception.GetType().FullName -eq "Microsoft.PowerShell.Commands.HttpResponseException") `
+              -and $_.Exception.Response.StatusCode -eq 429) {
+            Write-Warning "Received 429 Too Many Requests error. Waiting 20 seconds and retrying..."
+            Start-Sleep -Seconds 20
+            $sessionLinkInfo = (Invoke-WebRequest -Uri $($SchedBaseURL + "/" + $eventUrl) -WebSession $mms -UseBasicParsing).Content.Replace("`r", "").Replace("`n", "")
+          }
+        }
 
-        $descriptionPattern = '<div class="tip-description">(?<description>.*?)<hr style="clear:both"'
+        $descriptionPattern = '<div class="tip-description">(?<description>.*?)(<div class="tip-roles">|<div class="sched-event-details-timeandplace">)'
         $description = [regex]::Matches($sessionLinkInfo, $descriptionPattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
         if ($description.Count -gt 0) { $sessionInfoText += "$(Invoke-BasicHTMLParser -html $description.Groups[0].Groups['description'].Value)`r`n`r`n" }
 
-        $rolesPattern = "<div class=`"tip-roles`">(?<roles>.*?)<br class='s-clr'"
+        $rolesPattern = '<div class="tip-roles">(?<roles>.*?)<div class="sched-file">|<div class="sched-event-details-timeandplace">'
         $roles = [regex]::Matches($sessionLinkInfo, $rolesPattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
         if ($roles.Count -gt 0) { $sessionInfoText += "$(Invoke-BasicHTMLParser -html $roles.Groups[0].Groups['roles'].Value)`r`n`r`n" }
 
@@ -274,7 +290,17 @@ $ConferenceYears | ForEach-Object -Process {
         if ((Test-Path -Path $outputFilePath) -eq $false) {
           Write-host -ForegroundColor Green "...attempting to download '$filename' because it doesn't exist"
           try {
-            Invoke-WebRequest -Uri $download.href -OutFile $outputfilepath -WebSession $mms
+            try{
+              Invoke-WebRequest -Uri $download.href -OutFile $outputfilepath -WebSession $mms -UseBasicParsing
+            }
+            catch {
+              if (($_.Exception.GetType().FullName -eq "System.Net.WebException" -or $_.Exception.GetType().FullName -eq "Microsoft.PowerShell.Commands.HttpResponseException") `
+                  -and $_.Exception.Response.StatusCode -eq 429) {
+                Write-Warning "Received 429 Too Many Requests error. Waiting 20 seconds and retrying..."
+                Start-Sleep -Seconds 20
+                Invoke-WebRequest -Uri $download.href -OutFile $outputfilepath -WebSession $mms -UseBasicParsing
+              }
+            }
             if ($win) { Unblock-File $outputFilePath }
           }
           catch {
@@ -286,7 +312,17 @@ $ConferenceYears | ForEach-Object -Process {
             Write-Output "...attempting to download '$filename'"
             $oldHash = (Get-FileHash $outputFilePath).Hash
             try {
-              Invoke-WebRequest -Uri $download.href -OutFile "$($outputfilepath).new" -WebSession $mms
+              try{
+                Invoke-WebRequest -Uri $download.href -OutFile "$($outputfilepath).new" -WebSession $mms -UseBasicParsing
+              }
+              catch {
+                if (($_.Exception.GetType().FullName -eq "System.Net.WebException" -or $_.Exception.GetType().FullName -eq "Microsoft.PowerShell.Commands.HttpResponseException") `
+                    -and $_.Exception.Response.StatusCode -eq 429) {
+                  Write-Warning "Received 429 Too Many Requests error. Waiting 20 seconds and retrying..."
+                  Start-Sleep -Seconds 20
+                  Invoke-WebRequest -Uri $download.href -OutFile "$($outputfilepath).new" -WebSession $mms -UseBasicParsing
+                }
+              }
               if ($win) { Unblock-File "$($outputfilepath).new" }
               $NewHash = (Get-FileHash "$($outputfilepath).new").Hash
               if ($NewHash -ne $oldHash) {
