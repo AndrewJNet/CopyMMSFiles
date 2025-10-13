@@ -9,10 +9,10 @@
 .OUTPUTS
   All session content from the specified years.
 .NOTES
-  Version:        1.7.1
+  Version:        1.7.2
   Author:         Andrew Johnson
-  Modified Date:  5/12/2025
-  Purpose/Change: Fixes a bug for Windows PowerShell
+  Modified Date:  10/13/2025
+  Purpose/Change: Added support for 2025 Music City
 
   Original author (2015 script): Duncan Russell - http://www.sysadmintechnotes.com
   Edits made by:
@@ -49,12 +49,12 @@
                                                        
 
 .EXAMPLE
-  .\Get-MMSSessionContent.ps1 -ConferenceList @('2025atmoa','2024fll');
+  .\Get-MMSSessionContent.ps1 -ConferenceList @('2025atmoa','2025music');
 
-  Downloads all MMS session content from 2025 at MOA and 2024 Flamingo Edition to C:\Conferences\MMS\
+  Downloads all MMS session content from 2025 at MOA and 2025 Music City Edition on to C:\Conferences\MMS\
 
 .EXAMPLE
-  .\Get-MMSSessionContent.ps1 -DownloadLocation "C:\Temp\MMS" -ConferenceId 2025atmoa
+  .\Get-MMSSessionContent.ps1 -DownloadLocation "C:\Temp\MMS" -ConferenceId 2025music
 
   Downloads all MMS session content from 2025 at MOA to C:\Temp\MMS\
 
@@ -75,7 +75,7 @@
 Param(
   [Parameter(Mandatory = $false)][string]$DownloadLocation = "C:\Conferences\MMS", # could validate this: [ValidateScript({(Test-Path -Path (Split-Path $PSItem))})]
   [Parameter(Mandatory = $true, ParameterSetName = 'SingleEvent')]
-  [ValidateSet("2015", "2016", "2017", "2018", "de2018", "2019", "jazz", "miami", "2022atmoa", "2023atmoa", "2023miami", "2024atmoa", "2024fll", "2025atmoa")]
+  [ValidateSet("2015", "2016", "2017", "2018", "de2018", "2019", "jazz", "miami", "2022atmoa", "2023atmoa", "2023miami", "2024atmoa", "2024fll", "2025atmoa", "2025music")]
   [string]$ConferenceId,
   [Parameter(Mandatory = $true, ParameterSetName = 'MultipleEvents', HelpMessage = "This needs to bwe a list or array of conference ids/years!")]
   [System.Collections.Generic.List[string]]$ConferenceList,
@@ -131,7 +131,7 @@ $DownloadLocation = $DownloadLocation.Trim('\')
 
 ## Setup
 $PublicContentYears = @('2015', '2016', '2017', '2019', 'jazz', 'miami', '2022atmoa', '2023atmoa','2023miami', '2024atmoa', '2024fll')
-$PrivateContentYears = @('2018', 'de2018', '2025atmoa')
+$PrivateContentYears = @('2018', 'de2018', '2025atmoa', '2025music')
 $ConferenceYears = New-Object -TypeName System.Collections.Generic.List[string]
 [int]$PublicYearsCount = $PublicContentYears.Count
 [int]$PrivateYearsCount = $PrivateContentYears.Count

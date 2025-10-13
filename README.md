@@ -27,8 +27,8 @@ Thank you to:
 - [Piotr Gardy](https://github.com/pgardy) for adding file hash comparing
 - As well as edits by [Jon Warnken](https://github.com/mrbodean), [Oliver Baddeley](https://github.com/BaddMann), and [Jorge Suarez](https://github.com/jorgeasaurus)
 
-This script is provided as-is with no guarantees. As of May 1, 2025, version 1.7 was tested with no errors using the following configurations:
+This script is provided as-is with no guarantees. As of October 13, 2025, version 1.7.2 was tested with no errors using the following configurations:
 
 - Windows 11 24H2 using Windows PowerShell 5.1
-- Windows 11 24H2 using PowerShell 7.4.5
-- Ubuntu using PowerShell 7.4.5
+- Windows 11 24H2 using PowerShell 7.5.3
+- Ubuntu using PowerShell 7.5.3
