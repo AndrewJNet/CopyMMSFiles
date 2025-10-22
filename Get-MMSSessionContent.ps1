@@ -9,10 +9,10 @@
 .OUTPUTS
   All session content from the specified years.
 .NOTES
-  Version:        1.7.2
+  Version:        1.7.3
   Author:         Andrew Johnson
-  Modified Date:  10/13/2025
-  Purpose/Change: Added support for 2025 Music City
+  Modified Date:  10/22/2025
+  Purpose/Change: Fixes credential prompt issue when launching PowerShell in certain ways on Windows
 
   Original author (2015 script): Duncan Russell - http://www.sysadmintechnotes.com
   Edits made by:
