@@ -46,7 +46,8 @@
                                                        Fixes the regex for the session descriptions and speakers (unknown when this broke)
                                                        Adds throttling to avoid 429 Too Many Requests errors (if request fails due to 429, script waits 20 seconds and retries)
                                                        Could be improved with exponential backoff, but this is a start - also 20 seconds seemed to work best (15 almost worked)
-                                                       
+    10/13/2025    1.7.2      Andrew Johnson            Updated and tested to include 2025 Music City Edition
+    10/22/2025    1.7.3      Nathan Ziehnert           Fixes credential prompt issue when launching PowerShell in certain ways on Windows                                                       
 
 .EXAMPLE
   .\Get-MMSSessionContent.ps1 -ConferenceList @('2025atmoa','2025music');
@@ -170,7 +171,15 @@ $ConferenceYears | ForEach-Object -Process {
   [string]$Year = $_
 
   if ($Year -in $PrivateContentYears) {
-    $creds = $host.UI.PromptForCredential('Sched Credentials', "Enter Credentials for the MMS Event: $Year", '', '')
+    ## We're going to generate the credential prompt manually to avoid issues
+    ## with the credential prompt not working in some scenarios. Specifically
+    ## when launching PowerShell from "run" or directly double-clicking on
+    ## powershell.exe in Windows versions that then launch the Windows Terminal.
+    Write-Host "Credentials required for $Year content."
+    $un = Read-Host "Enter Username for $Year Sched"
+    $pw = Read-Host "Enter Password for $Year Sched" -AsSecureString
+    $creds = [System.Management.Automation.PSCredential]::new($un, $pw)
+    $un, $pw = $null
   }
 
   $SchedBaseURL = "https://mms" + $Year + ".sched.com"
