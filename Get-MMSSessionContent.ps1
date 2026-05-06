@@ -9,10 +9,10 @@
 .OUTPUTS
   All session content from the specified years.
 .NOTES
-  Version:        1.7.3
+  Version:        1.7.4
   Author:         Andrew Johnson
-  Modified Date:  10/22/2025
-  Purpose/Change: Fixes credential prompt issue when launching PowerShell in certain ways on Windows
+  Modified Date:  5/5/2025
+  Purpose/Change: Updated and tested to include 2026 at MOA 
 
   Original author (2015 script): Duncan Russell - http://www.sysadmintechnotes.com
   Edits made by:
@@ -47,17 +47,18 @@
                                                        Adds throttling to avoid 429 Too Many Requests errors (if request fails due to 429, script waits 20 seconds and retries)
                                                        Could be improved with exponential backoff, but this is a start - also 20 seconds seemed to work best (15 almost worked)
     10/13/2025    1.7.2      Andrew Johnson            Updated and tested to include 2025 Music City Edition
-    10/22/2025    1.7.3      Nathan Ziehnert           Fixes credential prompt issue when launching PowerShell in certain ways on Windows                                                       
+    10/22/2025    1.7.3      Nathan Ziehnert           Fixes credential prompt issue when launching PowerShell in certain ways on Windows     
+    10/22/2025    1.7.4      Andrew Johnson            Updated and tested to include 2026 at MOA                                                  
 
 .EXAMPLE
-  .\Get-MMSSessionContent.ps1 -ConferenceList @('2025atmoa','2025music');
+  .\Get-MMSSessionContent.ps1 -ConferenceList @('2026atmoa','2025music');
 
-  Downloads all MMS session content from 2025 at MOA and 2025 Music City Edition on to C:\Conferences\MMS\
+  Downloads all MMS session content from 2026 at MOA and 2025 Music City Edition on to C:\Conferences\MMS\
 
 .EXAMPLE
-  .\Get-MMSSessionContent.ps1 -DownloadLocation "C:\Temp\MMS" -ConferenceId 2025music
+  .\Get-MMSSessionContent.ps1 -DownloadLocation "C:\Temp\MMS" -ConferenceId 2026atmoa
 
-  Downloads all MMS session content from 2025 at MOA to C:\Temp\MMS\
+  Downloads all MMS session content from 2026 at MOA to C:\Temp\MMS\
 
 .EXAMPLE
   .\Get-MMSSessionContent.ps1 -All
@@ -76,9 +77,9 @@
 Param(
   [Parameter(Mandatory = $false)][string]$DownloadLocation = "C:\Conferences\MMS", # could validate this: [ValidateScript({(Test-Path -Path (Split-Path $PSItem))})]
   [Parameter(Mandatory = $true, ParameterSetName = 'SingleEvent')]
-  [ValidateSet("2015", "2016", "2017", "2018", "de2018", "2019", "jazz", "miami", "2022atmoa", "2023atmoa", "2023miami", "2024atmoa", "2024fll", "2025atmoa", "2025music")]
+  [ValidateSet("2015", "2016", "2017", "2018", "de2018", "2019", "jazz", "miami", "2022atmoa", "2023atmoa", "2023miami", "2024atmoa", "2024fll", "2025atmoa", "2025music","2026atmoa")]
   [string]$ConferenceId,
-  [Parameter(Mandatory = $true, ParameterSetName = 'MultipleEvents', HelpMessage = "This needs to bwe a list or array of conference ids/years!")]
+  [Parameter(Mandatory = $true, ParameterSetName = 'MultipleEvents', HelpMessage = "This needs to be a list or array of conference IDs/years!")]
   [System.Collections.Generic.List[string]]$ConferenceList,
   [Parameter(Mandatory = $true, ParameterSetName = 'AllEvents')][switch]$All,
   [Parameter(Mandatory = $false)][switch]$ExcludeSessionDetails,
@@ -118,8 +119,82 @@ function Invoke-BasicHTMLParser ($html) {
   
   return $html
 }
+
+function Get-EventLinkPairs {
+  param(
+    [Parameter(Mandatory = $true)]
+    [object]$SchedulePage
+  )
+
+  $eventPairs = New-Object -TypeName System.Collections.Generic.List[object]
+  $eventTitleByUrl = @{}
+
+  if ($SchedulePage.Content) {
+    $eventRegex = '<a[^>]+href="(?<url>event\/[^"#?]+)"[^>]*>(?<title>.*?)<\/a>'
+    $eventMatches = [regex]::Matches($SchedulePage.Content.Replace("`r", "").Replace("`n", ""), $eventRegex, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    foreach ($m in $eventMatches) {
+      $u = [string]$m.Groups['url'].Value.Trim()
+      $t = [regex]::Replace($m.Groups['title'].Value, '<[^>]+>', '').Trim()
+      if (-not [string]::IsNullOrWhiteSpace($u) -and -not [string]::IsNullOrWhiteSpace($t) -and -not $eventTitleByUrl.ContainsKey($u)) {
+        $eventTitleByUrl[$u] = $t
+      }
+    }
+  }
+
+  # First attempt: use parsed Links collection
+  if ($SchedulePage.Links) {
+    foreach ($lnk in $SchedulePage.Links) {
+      if ($lnk.href -like 'event/*') {
+        [string]$url = [string]$lnk.href
+        [string]$title = [string]$lnk.innerText
+
+        if ([string]::IsNullOrWhiteSpace($title) -and $lnk.outerHTML) {
+          $title = [regex]::Replace([string]$lnk.outerHTML, '<[^>]+>', '').Trim()
+        }
+
+        if ([string]::IsNullOrWhiteSpace($title) -and $eventTitleByUrl.ContainsKey($url)) {
+          $title = [string]$eventTitleByUrl[$url]
+        }
+
+        if ([string]::IsNullOrWhiteSpace($title) -and $url -match '^event\/[^\/]+\/(?<slug>[^\/?#]+)') {
+          $title = [System.Uri]::UnescapeDataString($matches['slug']) -replace '-', ' '
+        }
+
+        $eventPairs.Add([PSCustomObject]@{
+            Url = $url
+            Title = $title
+          })
+      }
+    }
+  }
+
+  # Fallback: parse anchor tags from raw HTML when Links parsing is incomplete
+  if ($eventPairs.Count -eq 0 -and $SchedulePage.Content) {
+    foreach ($entry in $eventTitleByUrl.GetEnumerator()) {
+      $eventPairs.Add([PSCustomObject]@{
+          Url = [string]$entry.Key
+          Title = [string]$entry.Value
+        })
+    }
+  }
+
+  # De-duplicate by URL while preserving order
+  $seen = @{}
+  $uniquePairs = New-Object -TypeName System.Collections.Generic.List[object]
+  foreach ($p in $eventPairs) {
+    if ([string]::IsNullOrWhiteSpace($p.Url)) { continue }
+    if (-not $seen.ContainsKey($p.Url)) {
+      $seen[$p.Url] = $true
+      $uniquePairs.Add($p)
+    }
+  }
+
+  return $uniquePairs
+}
+
 ## Hide Invoke-WebRequest progress bar. There's a bug that doesn't clear the bar after a request is finished. 
 $ProgressPreference = "SilentlyContinue"
+
 ## Determine OS... sorta
 if ($PSEdition -eq "Desktop" -or $isWindows) { $win = $true }
 else { 
@@ -131,8 +206,8 @@ else {
 $DownloadLocation = $DownloadLocation.Trim('\')
 
 ## Setup
-$PublicContentYears = @('2015', '2016', '2017', '2019', 'jazz', 'miami', '2022atmoa', '2023atmoa','2023miami', '2024atmoa', '2024fll')
-$PrivateContentYears = @('2018', 'de2018', '2025atmoa', '2025music')
+$PublicContentYears = @('2015', '2016', '2017', '2019', 'jazz', 'miami', '2022atmoa', '2023atmoa','2023miami', '2024atmoa', '2024fll','2025atmoa', '2025music')
+$PrivateContentYears = @('2018', 'de2018', '2026atmoa')
 $ConferenceYears = New-Object -TypeName System.Collections.Generic.List[string]
 [int]$PublicYearsCount = $PublicContentYears.Count
 [int]$PrivateYearsCount = $PrivateContentYears.Count
@@ -186,7 +261,6 @@ $ConferenceYears | ForEach-Object -Process {
   $SchedLoginURL = $SchedBaseURL + "/login"
   Add-Type -AssemblyName System.Web
   $web = Invoke-WebRequest $SchedLoginURL -SessionVariable mms -UseBasicParsing
-  ## Connect to Sched
 
   if ($creds) {
     #$form = $web.Forms[1]
@@ -200,42 +274,42 @@ $ConferenceYears | ForEach-Object -Process {
     $body = "landing_conf=" + [System.Uri]::EscapeDataString($SchedBaseURL) + "&username=" + [System.Uri]::EscapeDataString($username) + "&password=" + [System.Uri]::EscapeDataString($password) + "&login="
 
     # SEND IT
-    $web = Invoke-WebRequest $SchedLoginURL -SessionVariable mms -Method POST -Body $body -UseBasicParsing
-
+    $web = Invoke-WebRequest $SchedLoginURL -WebSession $mms -Method POST -Body $body -UseBasicParsing -Headers @{ Referer = $SchedLoginURL; Origin = $SchedBaseURL }
   }
   else {
     $web = Invoke-WebRequest $SchedLoginURL -SessionVariable mms -UseBasicParsing
   }
 
   $SessionDownloadPath = $DownloadLocation + '\mms' + $Year
-  Write-Output "Logging in to $SchedBaseURL"
 
   ## Check if we connected (if required):
   if ((-Not ($web.InputFields.FindByName("login")) -and ($Year -in $PrivateContentYears)) -or ($Year -in $PublicContentYears)) {
-    ##
-    Write-Output "Downloaded content can be found in $SessionDownloadPath"
-
-    $sched = Invoke-WebRequest -Uri $($SchedBaseURL + "/list/descriptions") -WebSession $mms -UseBasicParsing
-    $links = $sched.Links
-    # For indexing available downloads later
-    $eventsList = New-Object -TypeName System.Collections.Generic.List[int]
-    $links | ForEach-Object -Process {
-      if ($_.href -like "event/*") {
-        [void]$eventsList.Add($links.IndexOf($_))
-      }
+    try {
+      $sched = Invoke-WebRequest -Uri $($SchedBaseURL + "/list/descriptions") -WebSession $mms -UseBasicParsing -ErrorAction Stop
     }
-    $eventCount = $eventsList.Count
+    catch {
+      Write-Output "FAILED: unable to retrieve session list"
+      continue
+    }
+
+    $events = Get-EventLinkPairs -SchedulePage $sched
+    $eventCount = $events.Count
 
     for ($i = 0; $i -lt $eventCount; $i++) {
-      [int]$linkIndex = $eventsList[$i]
-      [int]$nextLinkIndex = $eventsList[$i + 1]
-      $eventobj = $links[($eventsList[$i])]
+      $event = $events[$i]
 
-      # Get/Fix the Session Title:
-      $titleRegex = '<a.*?href="(?<url>.*?)".*?>(?<title>.*?)(<span|<\/a>)'
-      $titleMatches = [regex]::Matches($eventobj.outerHTML.Replace("`r", "").Replace("`n", ""), $titleRegex, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
-      [string]$eventTitle = $titleMatches.Groups[0].Groups['title'].Value.Trim()
-      [string]$eventUrl = $titleMatches.Groups[0].Groups['url'].Value.Trim()
+      [string]$eventTitle = [string]$event.Title
+      [string]$eventUrl = [string]$event.Url
+      if ([string]::IsNullOrWhiteSpace($eventTitle)) { $eventTitle = $eventUrl }
+      if ([string]::IsNullOrWhiteSpace($eventUrl)) { continue }
+
+      # Strip capacity labels (FULL, LIMITED, FILLING, etc.) that Sched appends to the anchor text
+      $eventTitle = $eventTitle -replace '\s*(FULL|LIMITED|SOLD OUT|WAITLIST|FILLING)\s*$', ''
+      $eventTitle = $eventTitle.Trim()
+
+      # Skip social/networking/activity events that never have downloadable content
+      if ($eventTitle -match '^Fishing with' -or $eventTitle -match '^Career Connections' -or
+          $eventTitle -match '^Great Big Game Show' -or $eventTitle -match 'Escape Game') { continue }
 
       # Generate session info string
       [string]$sessionInfoText = ""
@@ -247,21 +321,33 @@ $ConferenceYears | ForEach-Object -Process {
       ## Set the download destination:
       $downloadPath = $SessionDownloadPath + "\" + $downloadTitle
 
-      ## Get session info if required:
-      if (-not $ExcludeSessionDetails) {
-        try{
-          #Wait-Debugger
-          $sessionLinkInfo = (Invoke-WebRequest -Uri $($SchedBaseURL + "/" + $eventUrl) -WebSession $mms -UseBasicParsing).Content.Replace("`r", "").Replace("`n", "")
-        }
-        catch {
-          if (($_.Exception.GetType().FullName -eq "System.Net.WebException" -or $_.Exception.GetType().FullName -eq "Microsoft.PowerShell.Commands.HttpResponseException") `
-              -and $_.Exception.Response.StatusCode -eq 429) {
-            Write-Warning "Received 429 Too Many Requests error. Waiting 20 seconds and retrying..."
-            Start-Sleep -Seconds 20
-            $sessionLinkInfo = (Invoke-WebRequest -Uri $($SchedBaseURL + "/" + $eventUrl) -WebSession $mms -UseBasicParsing).Content.Replace("`r", "").Replace("`n", "")
+      # Fetch the individual event page. Hosted files are now reliably discovered there.
+      $sessionPage = $null
+      try {
+        $sessionPage = Invoke-WebRequest -Uri $($SchedBaseURL + "/" + $eventUrl) -WebSession $mms -UseBasicParsing -ErrorAction Stop
+      }
+      catch {
+        if (($_.Exception.GetType().FullName -eq "System.Net.WebException" -or $_.Exception.GetType().FullName -eq "Microsoft.PowerShell.Commands.HttpResponseException") `
+            -and $_.Exception.Response.StatusCode -eq 429) {
+          Start-Sleep -Seconds 20
+          try {
+            $sessionPage = Invoke-WebRequest -Uri $($SchedBaseURL + "/" + $eventUrl) -WebSession $mms -UseBasicParsing -ErrorAction Stop
+          }
+          catch {
+            $sessionPage = $null
           }
         }
+      }
 
+      if (-not $sessionPage) {
+        Write-Output "FAILED: $eventTitle"
+        continue
+      }
+
+      $sessionLinkInfo = $sessionPage.Content.Replace("`r", "").Replace("`n", "")
+
+      ## Get session info if required:
+      if (-not $ExcludeSessionDetails) {
         $descriptionPattern = '<div class="tip-description">(?<description>.*?)(<div class="tip-roles">|<div class="sched-event-details-timeandplace">)'
         $description = [regex]::Matches($sessionLinkInfo, $descriptionPattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
         if ($description.Count -gt 0) { $sessionInfoText += "$(Invoke-BasicHTMLParser -html $description.Groups[0].Groups['description'].Value)`r`n`r`n" }
@@ -274,9 +360,43 @@ $ConferenceYears | ForEach-Object -Process {
         Out-File -FilePath "$downloadPath\Session Info.txt" -InputObject $sessionInfoText -Force -Encoding default
       }
 
-      $downloads = $links[($linkIndex + 1)..($nextLinkIndex - 1)] | Where-Object { $_.href -like "*hosted_files*" } #prefilter
+      $downloads = $sessionPage.Links | Where-Object {
+        $_.href -like "*hosted-files*" -or
+        $_.href -like "*hosted-files.sched.co*" -or
+        $_.href -like "//hosted-files.sched.co/*"
+      } | Select-Object -Unique
+
+      # Fallback: parse hosted-files URLs directly from HTML when Links collection is sparse
+      if ($downloads.Count -eq 0 -and $sessionPage.Content) {
+        $hostedFilesRegex = 'href="((?:https?:)?//hosted-files\.sched\.co/[^"]+)"'
+        $hostedMatches = [regex]::Matches($sessionPage.Content, $hostedFilesRegex, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+
+        if ($hostedMatches.Count -gt 0) {
+          $downloads = @()
+          foreach ($m in $hostedMatches) {
+            $url = $m.Groups[1].Value
+            if ($url -notin ($downloads | Select-Object -ExpandProperty href)) {
+              $downloads += [PSCustomObject]@{ href = $url }
+            }
+          }
+        }
+      }
+
+      if ($downloads.Count -eq 0) {
+        Write-Output "No files found for: $eventTitle"
+      }
+      
+
       foreach ($download in $downloads) {
-        $filename = Split-Path $download.href -Leaf
+        $downloadUrl = $download.href
+        if ($downloadUrl -like "//hosted-files.sched.co/*") {
+          $downloadUrl = "https:$downloadUrl"
+        }
+        elseif ($downloadUrl -notmatch '^https?://') {
+          $downloadUrl = "$SchedBaseURL/$downloadUrl"
+        }
+
+        $filename = Split-Path $downloadUrl -Leaf
         # Replace HTTP Encoding Characters (e.g. %20) with the proper equivalent.
         $filename = [System.Web.HttpUtility]::UrlDecode($filename)
         # Replace non-standard characters
@@ -297,61 +417,64 @@ $ConferenceYears | ForEach-Object -Process {
         # Download the file
         if ((Test-Path -Path $($downloadPath)) -eq $false) { New-Item -ItemType Directory -Force -Path $downloadPath | Out-Null }
         if ((Test-Path -Path $outputFilePath) -eq $false) {
-          Write-host -ForegroundColor Green "...attempting to download '$filename' because it doesn't exist"
+          Write-Output "DOWNLOADING: $filename"
           try {
             try{
-              Invoke-WebRequest -Uri $download.href -OutFile $outputfilepath -WebSession $mms -UseBasicParsing
+              Invoke-WebRequest -Uri $downloadUrl -OutFile $outputfilepath -WebSession $mms -UseBasicParsing -ErrorAction Stop
             }
             catch {
               if (($_.Exception.GetType().FullName -eq "System.Net.WebException" -or $_.Exception.GetType().FullName -eq "Microsoft.PowerShell.Commands.HttpResponseException") `
                   -and $_.Exception.Response.StatusCode -eq 429) {
-                Write-Warning "Received 429 Too Many Requests error. Waiting 20 seconds and retrying..."
                 Start-Sleep -Seconds 20
-                Invoke-WebRequest -Uri $download.href -OutFile $outputfilepath -WebSession $mms -UseBasicParsing
+                Invoke-WebRequest -Uri $downloadUrl -OutFile $outputfilepath -WebSession $mms -UseBasicParsing -ErrorAction Stop
               }
+              else { throw }
             }
             if ($win) { Unblock-File $outputFilePath }
           }
           catch {
-            Write-Output ".................$($PSItem.Exception) for '$($download.href)'...moving to next file..."
+            Write-Output "FAILED: $filename"
           }
         }
         else {
           if ($ReDownloadIsHashIsDifferent) {
-            Write-Output "...attempting to download '$filename'"
+            Write-Output "DOWNLOADING: $filename"
             $oldHash = (Get-FileHash $outputFilePath).Hash
             try {
               try{
-                Invoke-WebRequest -Uri $download.href -OutFile "$($outputfilepath).new" -WebSession $mms -UseBasicParsing
+                Invoke-WebRequest -Uri $downloadUrl -OutFile "$($outputfilepath).new" -WebSession $mms -UseBasicParsing -ErrorAction Stop
               }
               catch {
                 if (($_.Exception.GetType().FullName -eq "System.Net.WebException" -or $_.Exception.GetType().FullName -eq "Microsoft.PowerShell.Commands.HttpResponseException") `
                     -and $_.Exception.Response.StatusCode -eq 429) {
-                  Write-Warning "Received 429 Too Many Requests error. Waiting 20 seconds and retrying..."
                   Start-Sleep -Seconds 20
-                  Invoke-WebRequest -Uri $download.href -OutFile "$($outputfilepath).new" -WebSession $mms -UseBasicParsing
+                  Invoke-WebRequest -Uri $downloadUrl -OutFile "$($outputfilepath).new" -WebSession $mms -UseBasicParsing -ErrorAction Stop
                 }
+                else { throw }
               }
               if ($win) { Unblock-File "$($outputfilepath).new" }
               $NewHash = (Get-FileHash "$($outputfilepath).new").Hash
               if ($NewHash -ne $oldHash) {
-                Write-Host -ForegroundColor Green " => HASH is different. Keeping new file"
                 Move-Item "$($outputfilepath).new" $outputfilepath -Force
               }
               else {
-                Write-Output " => Hash is the same. "
+                Write-Output "SKIPPING: $filename"
                 Remove-item "$($outputfilepath).new" -Force
               }
             }
             catch {
-              Write-Output ".................$($PSItem.Exception) for '$($download.href)'...moving to next file..."
+              Write-Output "FAILED: $filename"
             }
+          }
+          else {
+            Write-Output "SKIPPING: $filename"
           }
         }
       } # end procesing downloads
     } # end processing session
-  } # end connectivity/login check
+    } # end connectivity/login check
   else {
-    Write-Output "Login to $SchedBaseUrl failed."
+    Write-Output "FAILED: login to $SchedBaseUrl"
   }
 }
+
