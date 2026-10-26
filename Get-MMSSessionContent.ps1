@@ -48,17 +48,18 @@
                                                        Could be improved with exponential backoff, but this is a start - also 20 seconds seemed to work best (15 almost worked)
     10/13/2025    1.7.2      Andrew Johnson            Updated and tested to include 2025 Music City Edition
     10/22/2025    1.7.3      Nathan Ziehnert           Fixes credential prompt issue when launching PowerShell in certain ways on Windows     
-    10/22/2025    1.7.4      Andrew Johnson            Updated and tested to include 2026 at MOA                                                  
+    5/6/2026      1.7.4      Andrew Johnson            Updated and tested to include 2026 at MOA
+    10/26/2026    1.7.5      Andrew Johnson            Updated and tested to include 2026 Midway Edition
 
 .EXAMPLE
-  .\Get-MMSSessionContent.ps1 -ConferenceList @('2026atmoa','2025music');
+  .\Get-MMSSessionContent.ps1 -ConferenceList @('2026atmoa','midway');
 
-  Downloads all MMS session content from 2026 at MOA and 2025 Music City Edition on to C:\Conferences\MMS\
+  Downloads all MMS session content from 2026 at MOA and 2026 Midway Edition on to C:\Conferences\MMS\
 
 .EXAMPLE
-  .\Get-MMSSessionContent.ps1 -DownloadLocation "C:\Temp\MMS" -ConferenceId 2026atmoa
+  .\Get-MMSSessionContent.ps1 -DownloadLocation "C:\Temp\MMS" -ConferenceId midway
 
-  Downloads all MMS session content from 2026 at MOA to C:\Temp\MMS\
+  Downloads all MMS session content from 2026 Midway Edition to C:\Temp\MMS\
 
 .EXAMPLE
   .\Get-MMSSessionContent.ps1 -All
@@ -77,7 +78,7 @@
 Param(
   [Parameter(Mandatory = $false)][string]$DownloadLocation = "C:\Conferences\MMS", # could validate this: [ValidateScript({(Test-Path -Path (Split-Path $PSItem))})]
   [Parameter(Mandatory = $true, ParameterSetName = 'SingleEvent')]
-  [ValidateSet("2015", "2016", "2017", "2018", "de2018", "2019", "jazz", "miami", "2022atmoa", "2023atmoa", "2023miami", "2024atmoa", "2024fll", "2025atmoa", "2025music","2026atmoa")]
+  [ValidateSet("2015", "2016", "2017", "2018", "de2018", "2019", "jazz", "miami", "2022atmoa", "2023atmoa", "2023miami", "2024atmoa", "2024fll", "2025atmoa", "2025music", "2026atmoa", "midway")]
   [string]$ConferenceId,
   [Parameter(Mandatory = $true, ParameterSetName = 'MultipleEvents', HelpMessage = "This needs to be a list or array of conference IDs/years!")]
   [System.Collections.Generic.List[string]]$ConferenceList,
@@ -161,7 +162,7 @@ function Get-EventLinkPairs {
         }
 
         $eventPairs.Add([PSCustomObject]@{
-            Url = $url
+            Url   = $url
             Title = $title
           })
       }
@@ -172,7 +173,7 @@ function Get-EventLinkPairs {
   if ($eventPairs.Count -eq 0 -and $SchedulePage.Content) {
     foreach ($entry in $eventTitleByUrl.GetEnumerator()) {
       $eventPairs.Add([PSCustomObject]@{
-          Url = [string]$entry.Key
+          Url   = [string]$entry.Key
           Title = [string]$entry.Value
         })
     }
@@ -206,8 +207,8 @@ else {
 $DownloadLocation = $DownloadLocation.Trim('\')
 
 ## Setup
-$PublicContentYears = @('2015', '2016', '2017', '2019', 'jazz', 'miami', '2022atmoa', '2023atmoa','2023miami', '2024atmoa', '2024fll','2025atmoa', '2025music')
-$PrivateContentYears = @('2018', 'de2018', '2026atmoa')
+$PublicContentYears = @('2015', '2016', '2017', '2019', 'jazz', 'miami', '2022atmoa', '2023atmoa', '2023miami', '2024atmoa', '2024fll', '2025atmoa', '2025music', '2026atmoa')
+$PrivateContentYears = @('2018', 'de2018', 'midway')
 $ConferenceYears = New-Object -TypeName System.Collections.Generic.List[string]
 [int]$PublicYearsCount = $PublicContentYears.Count
 [int]$PrivateYearsCount = $PrivateContentYears.Count
@@ -309,7 +310,7 @@ $ConferenceYears | ForEach-Object -Process {
 
       # Skip social/networking/activity events that never have downloadable content
       if ($eventTitle -match '^Fishing with' -or $eventTitle -match '^Career Connections' -or
-          $eventTitle -match '^Great Big Game Show' -or $eventTitle -match 'Escape Game') { continue }
+        $eventTitle -match '^Great Big Game Show' -or $eventTitle -match 'Escape Game' -or $eventTitle -match 'Wingman Session') { continue }
 
       # Generate session info string
       [string]$sessionInfoText = ""
@@ -419,7 +420,7 @@ $ConferenceYears | ForEach-Object -Process {
         if ((Test-Path -Path $outputFilePath) -eq $false) {
           Write-Output "DOWNLOADING: $filename"
           try {
-            try{
+            try {
               Invoke-WebRequest -Uri $downloadUrl -OutFile $outputfilepath -WebSession $mms -UseBasicParsing -ErrorAction Stop
             }
             catch {
@@ -441,7 +442,7 @@ $ConferenceYears | ForEach-Object -Process {
             Write-Output "DOWNLOADING: $filename"
             $oldHash = (Get-FileHash $outputFilePath).Hash
             try {
-              try{
+              try {
                 Invoke-WebRequest -Uri $downloadUrl -OutFile "$($outputfilepath).new" -WebSession $mms -UseBasicParsing -ErrorAction Stop
               }
               catch {
@@ -472,7 +473,7 @@ $ConferenceYears | ForEach-Object -Process {
         }
       } # end procesing downloads
     } # end processing session
-    } # end connectivity/login check
+  } # end connectivity/login check
   else {
     Write-Output "FAILED: login to $SchedBaseUrl"
   }

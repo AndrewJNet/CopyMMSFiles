@@ -1,6 +1,6 @@
 # Get-MMSSessionContent
 
-These scripts are used to download the session files that were made available during [Midwest Management Summit 2015-2026](http://mmsmoa.com). If you are involved in configuration/infrastructure/identity/mobile device management primarily in the Microsoft space, consider attending this event!
+These scripts are used to download the session files that were made available during [Midwest Management Summit 2015-2026 Midway Edition](http://mmsmoa.com). If you are involved in configuration/infrastructure/identity/mobile device management primarily in the Microsoft space, consider attending this event!
 
 ## Usage
 
@@ -10,7 +10,7 @@ For content just from 2026 in a custom directory (default is C:\Conferences\MMS\
 
 For multiple years:
 
-``` .\Get-MMSSessionContent.ps1 -ConferenceList @('2015','2026atmoa')```
+``` .\Get-MMSSessionContent.ps1 -ConferenceList @('2015','midway')```
 
 To exclude session details:
 
@@ -27,11 +27,11 @@ Thank you to:
 - [Piotr Gardy](https://github.com/pgardy) for adding file hash comparing
 - As well as edits by [Jon Warnken](https://github.com/mrbodean), [Oliver Baddeley](https://github.com/BaddMann), and [Jorge Suarez](https://github.com/jorgeasaurus)
 
-This script is provided as-is with no guarantees. As of May 6, 2026, version 1.7.4 was tested with no errors using the following configurations:
+This script is provided as-is with no guarantees. As of October 26, 2026, version 1.7.5 was tested with no errors using the following configurations:
 
 - Windows 11 25H2 using Windows PowerShell 5.1
-- Windows 11 25H2 using PowerShell 7.6.0
+- Windows 11 25H2 using PowerShell 7.6.9
 - Windows 11 25H2 (Arm64) using Windows PowerShell 5.1
-- Windows 11 25H2 (Arm64) using PowerShell 7.6.0
-- Ubuntu using PowerShell 7.6.0
-- MacOS using PowerShell 7.6.0
+- Windows 11 25H2 (Arm64) using PowerShell 7.6.9
+- Ubuntu using PowerShell 7.6.9
+- MacOS using PowerShell 7.6.9
