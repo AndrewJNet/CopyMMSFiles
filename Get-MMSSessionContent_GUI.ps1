@@ -8,6 +8,79 @@
     selecting, filtering, and downloading Midwest Management Summit (MMS)
     session content from Sched.
 
+    ## Startup and Conference Selection
+
+    The main window opens without a credential popup or automatic network query.
+    All 17 preloaded conferences are initially visible with an access status of
+    Not queried. Conference checkboxes select query targets and filter the loaded
+    session list. Select All includes visible conferences that are not yet queried.
+
+    Query Selected refreshes only checked conferences, including checked past
+    years. It retains the catalog and sessions previously loaded for other
+    conferences. Refreshing a conference replaces its old sessions and selections.
+
+    ## Authentication
+
+    Public schedules may be queried without signing in, but all conference-file
+    downloads require a completed Sign In. Enter a username and password and click
+    Sign In. Authentication is verified against
+    the first checked conference, or 2026atmoa when none is checked. A successful
+    sign-in does not guarantee access to every conference. Before downloading, the
+    application verifies authenticated access to every distinct target conference.
+    If any check fails or falls back to public mode, the job stops before writing
+    session metadata or attachments. Cached anonymous sessions cannot bypass this gate.
+
+    Editing either credential field clears the active credential and web-session
+    caches and resets the button to Sign In. Passwords are not written to logs
+    or results; query messages may include the username. The masked password
+    textbox retains its value in process memory.
+    Both download buttons remain disabled until Sign In succeeds and are disabled
+    again when either credential field changes. Schedule browsing remains available.
+
+    ## Discovery and Manual Queries
+
+    Discover IDs probes configured year/suffix combinations and appends valid
+    conferences without loading their sessions or clearing existing results.
+    Discovery uses the Show past years setting to choose its probing year range.
+
+    Add and Query accepts the ID suffix only, such as 2027atmoa or midway, rather
+    than a full URL. IDs must contain only letters and numbers. A new ID is appended
+    to the catalog, checked, and immediately queried. Existing IDs are reused.
+    Manually queried entries remain visible despite year/access visibility filters.
+
+    ## Session Filtering and Downloads
+
+    The session list shows loaded sessions from checked conferences, or all loaded
+    sessions not hidden by the year setting when no conferences are checked.
+    Text filtering matches session titles or conference IDs without regard to case.
+    Filtering changes the display, not the underlying checked-session selections.
+
+    Download SELECTED Sessions uses all checked session objects, including checked
+    sessions currently outside the text filter. Download ALL Sessions of Checked
+    Conferences uses all loaded sessions from checked, accessible, year-visible
+    conferences and requests confirmation before starting.
+
+    Files are grouped by conference and sanitized session title. Session Info.txt
+    is written unless excluded. Existing files are skipped unless hash comparison
+    is enabled; hash comparison downloads a temporary copy and replaces changed
+    content. Only Sched hosted-file links are downloaded, not arbitrary linked sites.
+
+    ## Logging, Reporting, and Cancellation
+
+    The GUI displays operation status and a timestamped log. Reports use ImportExcel
+    when available and fall back to UTF-8 CSV when Excel export is unavailable or
+    fails. Reports and logs remain under C:\Scripts even if the download folder changes.
+
+    Cancel stops the current operation, including an in-flight HTTP request, while
+    leaving the window available for a new operation. Closing the window hides it
+    immediately if busy, cancels pending requests, and closes it after cleanup.
+    Incomplete new files and hash-check temporary files are removed; completed files
+    are retained. Cancelled jobs do not begin result export. A report already being
+    written finishes before cleanup. Window-close tracking is native WinForms code
+    and does not invoke a PowerShell FormClosing callback on a stopped pipeline.
+
+    ## Attribution
+
     This project is based on Get-MMSSessionContent.ps1 Version 1.7.4 from
     the CopyMMSFiles project and would not exist without the work of the
     original authors and contributors listed below.
@@ -57,46 +130,52 @@
     GUI Enhancements Include:
 
         - Windows Forms graphical interface
-        - Automatic MMS conference discovery
+        - On-demand MMS conference discovery
         - Conference accessibility validation
         - Conference and session filtering
         - Session selection with checkbox support
         - Bulk conference downloads
         - Individual session downloads
-        - Credential prompt with optional anonymous mode
+        - In-window sign-in with optional anonymous mode
         - Download logging
         - Results reporting
         - Excel export support with CSV fallback
-        - Preloaded conference and session inventory
+        - Preloaded conference catalog with on-demand session inventory
         - Automatic STA relaunch when required
 
     Run with NO parameters:
 
-        1. A sign-in window prompts for Sched credentials.
-        2. Credentials may be skipped for public-only content.
-        3. The script discovers known and available MMS conferences.
-        4. Accessible conferences are loaded into the GUI.
-        5. Sessions are retrieved and displayed.
+        1. The GUI opens directly with the preloaded conference catalog.
+        2. Query public schedules without signing in; complete Sign In before downloading files.
+        3. Select one or more conferences and use Query Selected.
+        4. Discover IDs finds additional conferences without querying their sessions.
+        5. Manually queried conferences are appended without removing the catalog.
         6. Users can:
              - Download all sessions from selected conferences
              - Download selected sessions only
              - Review session metadata before downloading
-        7. Logs and reports are written to C:\Scripts.
+        7. Logs are written during operations; download results are exported after a job.
 
     Requirements:
 
         - Windows
         - PowerShell 5.1 or PowerShell 7.x
         - Internet connectivity
-        - Valid Sched credentials for protected content
+        - Valid Sched credentials and conference permissions for protected content
+        - Write permission to C:\Scripts and the selected download folder
+        - Optional ImportExcel module for Excel reports; otherwise CSV is used
 
 .INPUTS
-    None
+    None. The script has no command-line parameters and does not accept pipeline input.
+    Conference IDs, credentials, selections, and download options are entered in the GUI.
 
 .OUTPUTS
 
     Session Content:
-        <DownloadLocation>\MMSContent\
+        <DownloadLocation>\mms<ConferenceId>\<SanitizedSessionTitle>\
+
+    Optional Session Metadata:
+        <DownloadLocation>\mms<ConferenceId>\<SanitizedSessionTitle>\Session Info.txt
 
     Default Download Location:
         C:\Scripts\MMSContent
@@ -110,13 +189,23 @@
     CSV Fallback:
         C:\Scripts\yyyy-MM-dd_HHmm-MMS-Download-Results.csv
 
+    Result Fields:
+        Timestamp, Conference, Session, File, Status, Path
+
+    Result Statuses:
+        Downloaded, Updated, Skipped, Failed, Failed (session page),
+        Failed (login), No files
+
+    No result report is written when the download job has no result records.
+
 .NOTES
 
-    Script Name:           Get-MMSSessionContent-GUI.ps1
-    Version:               2.1.1-GUI
+    Script Name:           Get-MMSSessionContent_GUI.ps1
+    Version:               2.1.2-GUI
     Author:                Keith Nail
     Website:               https://www.my02dcents.com
     Created:               2026-10-23
+    Documentation Updated: 2026-11-02
 
     Based On:
         Get-MMSSessionContent.ps1 Version 1.7.4
@@ -129,6 +218,32 @@
         browsing, filtering, and downloading MMS session
         content without requiring command-line parameters.
 
+        ## Section Map
+
+        - Prerequisites and Assemblies: Windows/STA checks, assemblies, TLS, progress.
+        - Global Settings and State: output locations, caches, selections, operation flags.
+        - Conference Catalog: known IDs, conference metadata, year/access visibility.
+        - Logging Functions: disk/GUI logging, status updates, result records.
+        - Helper Functions: responsive waits, HTTP retry, HTML parsing, credentials.
+        - Credential Prompt: retained legacy dialog; not used by the current launch path.
+        - Authentication and Conference Query Functions: sign-in, schedules, discovery.
+        - Download Functions: per-file handling, session metadata, download jobs.
+        - Export Functions: timestamped Excel reports with automatic CSV fallback.
+        - GUI State Functions: selection synchronization, filtering, busy-state controls.
+        - Build GUI: credentials, conference/session lists, downloads, status, log.
+        - Event Handlers: user actions, visibility changes, cancellation, startup display.
+        - Launch GUI: modal application loop and form disposal.
+
+        ## Operational Notes
+
+        - Windows Forms requires Windows and a single-threaded apartment (STA).
+        - Queries and downloads run synchronously while selected helpers process UI events.
+        - HTTP 429 responses receive one delayed retry; other request errors propagate.
+        - Sched HTML changes can affect login detection, schedule parsing, and hosted links.
+        - Known Private conferences require credentials; public/discovered sites may fall
+            back to anonymous access if their login attempt is not accepted.
+        - The retained legacy dialog is not invoked by startup or by the Sign In button.
+
     Version History
 
     Date          Version       Author          Notes
@@ -136,18 +251,32 @@
     2026-10-23    2.1.1-GUI     Keith Nail      Initial GUI release based on
                                                 Get-MMSSessionContent.ps1 v1.7.4
 
+    2026-10-23    2.1.2-GUI     Keith Nail      Updated GUI release with improved functionality
+                                                and bug fixes. Not to initially query past years of MMS conferences, but to allow the user to select the year of interest.
+
+    2026-11-02    2.1.2-GUI     Keith Nail      Current workflow documentation: direct GUI
+                                                launch, selected queries, in-window sign-in,
+                                                manual append, and on-demand discovery.
+
 .EXAMPLE
 
-    .\Get-MMSSessionContent-GUI.ps1
+    .\Get-MMSSessionContent_GUI.ps1
 
-    Launches the GUI and prompts for Sched credentials.
+    Launches the GUI with the conference catalog and in-window sign-in controls.
 
 .EXAMPLE
 
-    powershell.exe -ExecutionPolicy Bypass `
-        -File .\Get-MMSSessionContent-GUI.ps1
+    powershell.exe -STA -ExecutionPolicy Bypass `
+        -File .\Get-MMSSessionContent_GUI.ps1
 
-    Launches the GUI directly from PowerShell.
+    Launches the GUI directly in Windows PowerShell with an STA thread.
+
+.EXAMPLE
+
+    pwsh.exe -STA -NoProfile -File .\Get-MMSSessionContent_GUI.ps1
+
+    Launches the GUI using PowerShell 7 on Windows. Select conferences in the
+    main window, then click Query Selected to retrieve their sessions.
 
 .LINK
 
@@ -166,15 +295,32 @@
 
 #>
 
+
 # ==================================================
 # MARK: Prerequisites and Assemblies
 # ==================================================
+<#
+## Prerequisites and Assemblies
+### Purpose
+Prepare a Windows Forms-compatible execution environment before creating controls.
+### Execution Flow
+- Reject an explicitly non-Windows platform before loading Windows-only assemblies.
+- Relaunch the saved script with `-STA` when the current thread is not STA, then return.
+- Load Windows Forms, Drawing, and Web utilities; enable native visual styles.
+- Compile the native MmsContentForm lifecycle type once, using the host's assembly paths.
+- Attempt to add TLS 1.2 support and suppress console web-request progress output.
+### Dependencies and Limitations
+Requires Windows and a saved script path for automatic relaunch. The relaunch preserves
+the host executable; it does not authenticate, discover conferences, or show a sign-in popup.
+MmsContentForm records ShutdownRequested without a PowerShell event callback. When busy,
+it hides and defers closing until CompleteOperation; otherwise it closes immediately.
+#>
 if ($PSVersionTable.PSObject.Properties.Name -contains 'Platform' -and $PSVersionTable.Platform -and $PSVersionTable.Platform -ne 'Win32NT') {
     Write-Host 'This GUI requires Windows (Windows Forms).' -ForegroundColor Red
     return
 }
 
-# Windows Forms needs an STA thread. Relaunch automatically if required.
+# Windows Forms requires STA; relaunch the saved script in the same host executable if needed.
 if ([System.Threading.Thread]::CurrentThread.GetApartmentState() -ne [System.Threading.ApartmentState]::STA) {
     if ($PSCommandPath) {
         $HostExe = (Get-Process -Id $PID).Path
@@ -189,11 +335,45 @@ if ([System.Threading.Thread]::CurrentThread.GetApartmentState() -ne [System.Thr
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Web
+if (-not ('MmsContentForm' -as [type])) {
+    $FormReferences = @(
+        [System.Windows.Forms.Form].Assembly.Location
+        [System.ComponentModel.Component].Assembly.Location
+        [System.ComponentModel.CancelEventArgs].Assembly.Location
+    ) | Select-Object -Unique
+    Add-Type -ReferencedAssemblies $FormReferences -TypeDefinition @'
+public class MmsContentForm : System.Windows.Forms.Form
+{
+    public bool ShutdownRequested { get; private set; }
+    public bool OperationActive { get; set; }
+
+    protected override void OnFormClosing(System.Windows.Forms.FormClosingEventArgs CloseArgs)
+    {
+        ShutdownRequested = true;
+        if (OperationActive)
+        {
+            CloseArgs.Cancel = true;
+            Hide();
+        }
+        base.OnFormClosing(CloseArgs);
+    }
+
+    public void CompleteOperation()
+    {
+        OperationActive = false;
+        if (ShutdownRequested && !IsDisposed)
+        {
+            Close();
+        }
+    }
+}
+'@
+}
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
 try { [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12 } catch { }
 
-## Hide Invoke-WebRequest progress bar. There's a bug that doesn't clear the bar after a request is finished.
+# Suppress console HTTP progress so the GUI's progress bar is the primary progress display.
 $ProgressPreference = 'SilentlyContinue'
 # ==================================================
 # ^^^^^ Prerequisites and Assemblies ^^^^^
@@ -202,6 +382,22 @@ $ProgressPreference = 'SilentlyContinue'
 # ==================================================
 # MARK: Global Settings and State
 # ==================================================
+<#
+## Global Settings and State
+### Purpose
+Initialize output defaults and the script-scoped data shared by functions and GUI handlers.
+### Output Locations
+- `OutputRoot`: `C:\Scripts`, created if missing; receives logs and download-result reports.
+- `DefaultDownloadLocation`: `C:\Scripts\MMSContent`; may be overridden in the GUI.
+- `RunStamp` and `LogFile`: one timestamped log filename for this application run.
+### Data and Operation State
+- `Sessions` stores per-conference HTTP sessions; `EventCache` stores parsed schedule entries.
+- `SessionList` stores loaded session objects and their download checkbox states.
+- `Results` stores the current download job's report records; each new job clears it.
+- `Credential`, `CancelRequested`, `IsBusy`, and `SuppressEvents` control authentication,
+  cooperative cancellation, overlapping operations, and programmatic checkbox updates.
+All state is in memory for this run; previously exported reports are not imported at launch.
+#>
 $Script:OutputRoot = 'C:\Scripts'
 $Script:DefaultDownloadLocation = Join-Path -Path $Script:OutputRoot -ChildPath 'MMSContent'
 $Script:RunStamp = Get-Date -Format 'yyyy-MM-dd_HHmm'
@@ -214,10 +410,10 @@ if (-not (Test-Path -Path $Script:OutputRoot)) {
 $Script:RegexIgnoreCase = [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
 $Script:NewLine = [System.Environment]::NewLine
 
-$Script:Sessions = @{}          # ConferenceId -> WebRequestSession (authenticated or anonymous)
-$Script:EventCache = @{}        # ConferenceId -> array of session (event) objects
-$Script:SessionList = New-Object -TypeName System.Collections.Generic.List[object]   # All sessions from accessible conferences
-$Script:Results = New-Object -TypeName System.Collections.Generic.List[object]       # Download results for export
+$Script:Sessions = @{}          # Conference ID -> authenticated or anonymous HTTP session.
+$Script:EventCache = @{}        # Conference ID -> cached parsed schedule/session objects.
+$Script:SessionList = New-Object -TypeName System.Collections.Generic.List[object]   # Loaded sessions and persistent checkbox states.
+$Script:Results = New-Object -TypeName System.Collections.Generic.List[object]       # Result records for the current download job.
 $Script:Credential = $null
 $Script:CancelRequested = $false
 $Script:IsBusy = $false
@@ -229,6 +425,35 @@ $Script:SuppressEvents = $false
 # ==================================================
 # MARK: Conference Catalog
 # ==================================================
+<#
+## Conference Catalog
+### Purpose
+Maintain an ordered conference inventory independently of whether its schedule has been queried.
+### Entry Fields
+| Field | Meaning |
+| --- | --- |
+| `Id`, `Name` | Sched ID suffix and display name; the host is `mms<Id>.sched.com`. |
+| `Type`, `Year` | Public/Private/Discovered classification and extracted four-digit year. |
+| `Access`, `SessionCount` | Last query outcome and number of loaded sessions. |
+| `Checked`, `Queried` | Current selection and whether an access query was attempted. |
+| `Manual` | Visibility override for an entry queried through Add and Query. |
+### Ordering and Visibility
+The 17 known entries are added in source order. New discoveries and manual IDs append to
+the same list; lookup is case-insensitive. Legacy IDs without a year return year zero and
+are normally considered past. Manual entries bypass the past-year visibility restriction.
+Discovery combines configured suffixes with years beginning at `ProbeStartYear` when enabled
+by the chosen discovery scope; preloaded entries are not proof that a site is still available.
+#>
+# Extract the first four-digit 20xx year; return zero for IDs with no embedded year.
+function Get-ConferenceYear {
+    param([Parameter(Mandatory = $true)][string]$ConfId)
+
+    $YearMatch = [System.Text.RegularExpressions.Regex]::Match($ConfId, '20\d{2}')
+    if ($YearMatch.Success) { return [int]$YearMatch.Value }
+    return 0
+}
+
+# Create a consistent catalog record with no loaded sessions and no initial selection.
 function New-ConferenceEntry {
     param(
         [Parameter(Mandatory = $true)][string]$Id,
@@ -239,14 +464,17 @@ function New-ConferenceEntry {
     return [PSCustomObject]@{
         Id           = $Id
         Name         = $Name
-        Type         = $Type          # Public / Private / Discovered
+        Type         = $Type          # Public / Private / Discovered; controls anonymous fallback policy.
+        Year         = Get-ConferenceYear -ConfId $Id
         Access       = 'Not queried'
         SessionCount = 0
         Checked      = $false
+        Queried      = $false
+        Manual       = $false
     }
 }
 
-# Known conferences (from $PublicContentYears / $PrivateContentYears in the original script)
+# Preload known conference IDs and access classifications from the original public/private lists.
 $Script:ConferenceCatalog = New-Object -TypeName System.Collections.Generic.List[object]
 $Script:ConferenceCatalog.Add((New-ConferenceEntry -Id '2015'      -Name 'MMS 2015'                        -Type 'Public'))
 $Script:ConferenceCatalog.Add((New-ConferenceEntry -Id '2016'      -Name 'MMS 2016'                        -Type 'Public'))
@@ -264,11 +492,14 @@ $Script:ConferenceCatalog.Add((New-ConferenceEntry -Id '2024fll'   -Name 'MMS 20
 $Script:ConferenceCatalog.Add((New-ConferenceEntry -Id '2025atmoa' -Name 'MMS 2025 at MOA'                 -Type 'Public'))
 $Script:ConferenceCatalog.Add((New-ConferenceEntry -Id '2025music' -Name 'MMS 2025 Music City Edition'     -Type 'Public'))
 $Script:ConferenceCatalog.Add((New-ConferenceEntry -Id '2026atmoa' -Name 'MMS 2026 at MOA'                 -Type 'Private'))
+$Script:ConferenceCatalog.Add((New-ConferenceEntry -Id 'midway'    -Name 'MMS 2026 Midway Edition'         -Type 'Public'))
 
-# Suffix patterns used to probe Sched for MMS conferences not in the list above
+
+# Discovery candidates combine these suffixes with the requested probing year range.
 $Script:ProbeSuffixes = @('atmoa', 'miami', 'fll', 'music')
 $Script:ProbeStartYear = 2022
 
+# Return the existing catalog object by case-insensitive ID, or null when it is unknown.
 function Get-ConferenceInfo {
     param([Parameter(Mandatory = $true)][string]$ConfId)
 
@@ -277,6 +508,22 @@ function Get-ConferenceInfo {
     }
     return $null
 }
+
+# Compare the stored conference year with the current local year; year-zero legacy entries are past.
+function Test-IsPastConference {
+    param([Parameter(Mandatory = $true)][object]$Conf)
+
+    return ([int]$Conf.Year -lt (Get-Date).Year)
+}
+
+# Apply Show past years; manually queried entries remain visible regardless of their year.
+function Test-IsHiddenConference {
+    param([Parameter(Mandatory = $true)][object]$Conf)
+
+    if ($Conf.Manual) { return $false }
+    if ($Script:ChkPast -and $Script:ChkPast.Checked) { return $false }
+    return (Test-IsPastConference -Conf $Conf)
+}
 # ==================================================
 # ^^^^^ Conference Catalog ^^^^^
 # ==================================================
@@ -284,30 +531,50 @@ function Get-ConferenceInfo {
 # ==================================================
 # MARK: Logging Functions
 # ==================================================
+<#
+## Logging Functions
+### Purpose
+Keep disk logging, the GUI activity log, the status label, and result records consistent.
+### Function Responsibilities
+- `Write-Log`: prefix messages with `yyyy-MM-dd_HHmmss` and a level, append to the log
+    file, and mirror messages to the GUI log when that control exists.
+- `Set-Status`: replace the current status-label text without creating a result record.
+- `Add-DownloadResult`: append Timestamp/Conference/Session/File/Status/Path fields
+    for a file outcome or a session-level failure/no-files outcome.
+### UI and Failure Behavior
+Logging and status updates process pending UI events. Disk log-write failures are swallowed
+so an unavailable log destination does not itself abort the requested operation. Result
+records are exported later by the download job, not by these helpers.
+#>
+# Append a leveled timestamped message to disk and the GUI, then process pending UI events.
 function Write-Log {
     param(
         [Parameter(Mandatory = $true)][string]$Message,
         [string]$Level = 'INFO'
     )
 
+    if ((Test-CancellationRequested) -and $Level -eq 'ERROR') { return }
     $Line = '[{0}] [{1}] {2}' -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'), $Level, $Message
     try { Add-Content -Path $Script:LogFile -Value $Line -ErrorAction Stop } catch { }
 
     if ($Script:TxtLog -and -not $Script:TxtLog.IsDisposed) {
         $Script:TxtLog.AppendText($Line + $Script:NewLine)
     }
-    [System.Windows.Forms.Application]::DoEvents()
+    Update-UiEvents
 }
 
+# Update the single current-status label when available; this does not append to the log.
 function Set-Status {
     param([string]$Text)
 
+    if ($Script:Form -and ($Script:Form.IsDisposed -or $Script:Form.ShutdownRequested)) { return }
     if ($Script:LblStatus -and -not $Script:LblStatus.IsDisposed) {
         $Script:LblStatus.Text = $Text
     }
-    [System.Windows.Forms.Application]::DoEvents()
+    Update-UiEvents
 }
 
+# Record one file/session outcome using the fixed report schema consumed by the export function.
 function Add-DownloadResult {
     param(
         [string]$ConfId,
@@ -333,16 +600,56 @@ function Add-DownloadResult {
 # ==================================================
 # MARK: Helper Functions
 # ==================================================
+<#
+## Helper Functions
+### Purpose
+Provide shared request handling, HTML normalization, session-link extraction, and credential creation.
+### HTTP and Responsiveness
+`Wait-WithDoEvents` waits in short intervals and observes cooperative cancellation.
+`Get-ErrorStatusCode` extracts an HTTP response status when available, otherwise zero.
+`Update-UiEvents` processes messages only while the form is open and maps native shutdown
+state to the cancellation flag. `Test-CancellationRequested` checks both operation and
+native form state. `Invoke-CancellableWebRequest` runs HTTP work in an isolated PowerShell
+runspace, processes GUI events while waiting, stops pending work on cancellation, and
+disposes its pipeline in finally. Request parameters and cookie sessions stay in process.
+`Invoke-SchedRequest` forwards options with a 30-second timeout and retries HTTP 429 once
+after a 20-second wait; cancellation prevents that retry. Discovery probes use 15 seconds.
+### Parsing
+`Invoke-BasicHTMLParser` converts selected line breaks, links, speaker blocks, and lists
+to readable metadata text before stripping remaining tags. `Get-EventLinkPairs` combines
+parsed anchors with raw HTML/title fallbacks and deduplicates session URLs. These parsers
+target Sched markup and are not general-purpose HTML parsers.
+### Credentials
+`Get-CurrentCredential` returns null for incomplete GUI credentials or constructs a
+PSCredential from the current fields. Construction alone does not authenticate to Sched.
+#>
+# Process pending UI messages without invoking controls after native shutdown begins.
+function Update-UiEvents {
+    if ($Script:Form -and -not $Script:Form.IsDisposed -and -not $Script:Form.ShutdownRequested) {
+        [System.Windows.Forms.Application]::DoEvents()
+    }
+    if ($Script:Form -and ($Script:Form.IsDisposed -or $Script:Form.ShutdownRequested)) {
+        $Script:CancelRequested = $true
+    }
+}
+
+# Treat window shutdown/disposal as cancellation even before the script flag is synchronized.
+function Test-CancellationRequested {
+    return ($Script:CancelRequested -or ($Script:Form -and ($Script:Form.IsDisposed -or $Script:Form.ShutdownRequested)))
+}
+
+# Keep the UI responsive during a bounded wait; stop waiting when cancellation is requested.
 function Wait-WithDoEvents {
     param([int]$Seconds = 1)
 
     $EndTime = (Get-Date).AddSeconds($Seconds)
-    while ((Get-Date) -lt $EndTime -and -not $Script:CancelRequested) {
+    while ((Get-Date) -lt $EndTime -and -not (Test-CancellationRequested)) {
         Start-Sleep -Milliseconds 200
-        [System.Windows.Forms.Application]::DoEvents()
+        Update-UiEvents
     }
 }
 
+# Read an HTTP status from the exception response when supported by the current host.
 function Get-ErrorStatusCode {
     param($ErrorRecord)
 
@@ -353,12 +660,46 @@ function Get-ErrorStatusCode {
     return 0
 }
 
+# Treat null, empty strings, and whitespace-only values as blank.
 function Test-IsBlank {
     param($Value)
     return ([System.String]::IsNullOrWhiteSpace([string]$Value))
 }
 
-# Wrapper around Invoke-WebRequest that adds the 429 (Too Many Requests) wait-and-retry from the original script
+# Run HTTP work off the UI thread and stop/dispose the worker when cancellation is requested.
+function Invoke-CancellableWebRequest {
+    param([Parameter(Mandatory = $true)][hashtable]$RequestParameters)
+
+    if (Test-CancellationRequested) { throw [System.OperationCanceledException]::new('Operation cancelled.') }
+    $RequestPipeline = [System.Management.Automation.PowerShell]::Create()
+    $PendingRequest = $null
+    try {
+        [void]$RequestPipeline.AddScript('param($RequestParameters) $ProgressPreference = "SilentlyContinue"; Invoke-WebRequest @RequestParameters').AddArgument($RequestParameters)
+        $PendingRequest = $RequestPipeline.BeginInvoke()
+        while (-not $PendingRequest.IsCompleted) {
+            Update-UiEvents
+            if (Test-CancellationRequested) {
+                $RequestPipeline.Stop()
+                throw [System.OperationCanceledException]::new('Operation cancelled.')
+            }
+            [void]$PendingRequest.AsyncWaitHandle.WaitOne(50)
+        }
+        if (Test-CancellationRequested) { throw [System.OperationCanceledException]::new('Operation cancelled.') }
+        try {
+            return $RequestPipeline.EndInvoke($PendingRequest)
+        }
+        catch {
+            if ($RequestPipeline.Streams.Error.Count -gt 0) { throw $RequestPipeline.Streams.Error[0] }
+            throw
+        }
+    }
+    finally {
+        if ($PendingRequest -and -not $PendingRequest.IsCompleted) { $RequestPipeline.Stop() }
+        $RequestPipeline.Dispose()
+    }
+}
+
+# Centralize Sched options and the single delayed HTTP 429 retry, respecting cancellation.
 function Invoke-SchedRequest {
     param(
         [Parameter(Mandatory = $true)][string]$Uri,
@@ -375,37 +716,41 @@ function Invoke-SchedRequest {
         Method          = $Method
         UseBasicParsing = $true
         ErrorAction     = 'Stop'
+        TimeoutSec      = 30
     }
     if ($Body) { $Params['Body'] = $Body }
     if ($Headers) { $Params['Headers'] = $Headers }
     if ($OutFile) { $Params['OutFile'] = $OutFile }
 
     try {
-        return (Invoke-WebRequest @Params)
+        return (Invoke-CancellableWebRequest -RequestParameters $Params)
     }
     catch {
         $Err = $_
+        if (Test-CancellationRequested) { throw [System.OperationCanceledException]::new('Operation cancelled.') }
         if ((Get-ErrorStatusCode -ErrorRecord $Err) -eq 429) {
             Write-Log -Message 'HTTP 429 (Too Many Requests) received. Waiting 20 seconds, then retrying once.' -Level 'WARN'
             Wait-WithDoEvents -Seconds 20
-            return (Invoke-WebRequest @Params)
+            if (Test-CancellationRequested) { throw [System.OperationCanceledException]::new('Operation cancelled.') }
+            return (Invoke-CancellableWebRequest -RequestParameters $Params)
         }
         throw
     }
 }
 
+# Convert supported Sched description markup into readable text with Markdown-style links/lists.
 function Invoke-BasicHTMLParser {
     param(
         [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Html,
         [Parameter(Mandatory = $true)][string]$SchedBaseURL
     )
 
-    $Html = $Html.Replace('<br>', "`r`n").Replace('<br/>', "`r`n").Replace('<br />', "`r`n") # replace <br> with new line
+    $Html = $Html.Replace('<br>', "`r`n").Replace('<br/>', "`r`n").Replace('<br />', "`r`n") # Normalize common HTML line-break variants.
 
-    # Speaker Spacing
+    # Preserve separation between speaker/session blocks in the exported metadata text.
     $Html = $Html.Replace('<div class="sched-person-session">', "`r`n`r`n")
 
-    # Link parsing
+    # Render anchors as [label](URL), resolving relative links against the conference site.
     $LinkRegex = '(?<texttoreplace><a.*?href="(?<link>.*?)".*?>(?<content>.*?)<\/a>)'
     $LinkMatches = [System.Text.RegularExpressions.Regex]::Matches($Html, $LinkRegex, $Script:RegexIgnoreCase)
     foreach ($LinkMatch in $LinkMatches) {
@@ -417,7 +762,7 @@ function Invoke-BasicHTMLParser {
         $Html = $Html.Replace($LinkMatch.Groups['texttoreplace'].Value, $ReplaceWith)
     }
 
-    # List Parsing
+    # Convert supported unordered-list markup to line-separated bullet text.
     $ListRegex = '(?<texttoreplace><ul[^>]?>(?<content>.*?)<\/ul>)'
     $ListMatches = [System.Text.RegularExpressions.Regex]::Matches($Html, $ListRegex, $Script:RegexIgnoreCase)
     foreach ($ListMatch in $ListMatches) {
@@ -425,14 +770,15 @@ function Invoke-BasicHTMLParser {
         $Html = $Html.Replace($ListMatch.Groups['texttoreplace'].Value, $ListContent)
     }
 
-    # General Cleanup
+    # Remove the arrow entity, preserve div breaks, and strip remaining HTML tags.
     $Html = $Html.Replace('&rarr;', '')
     $Html = $Html -replace '<div[^>]+>', "`r`n"
-    $Html = $Html -replace '<[^>]+>', '' # Strip all HTML tags
+    $Html = $Html -replace '<[^>]+>', '' # Leave text after the supported transformations.
 
     return $Html
 }
 
+# Build unique event URL/title pairs, recovering titles from HTML or URL slugs when needed.
 function Get-EventLinkPairs {
     param(
         [Parameter(Mandatory = $true)]
@@ -455,7 +801,7 @@ function Get-EventLinkPairs {
         }
     }
 
-    # First attempt: use parsed Links collection
+    # Prefer the response's parsed Links collection, supplementing missing titles from raw HTML.
     if ($SchedulePage.Links) {
         foreach ($Lnk in $SchedulePage.Links) {
             if ($Lnk.href -like 'event/*') {
@@ -482,7 +828,7 @@ function Get-EventLinkPairs {
         }
     }
 
-    # Fallback: parse anchor tags from raw HTML when Links parsing is incomplete
+    # Use raw HTML event anchors when the parsed Links collection yielded no event pairs.
     if ($EventPairs.Count -eq 0 -and $SchedulePage.Content) {
         foreach ($Entry in $EventTitleByUrl.GetEnumerator()) {
             $EventPairs.Add([PSCustomObject]@{
@@ -492,7 +838,7 @@ function Get-EventLinkPairs {
         }
     }
 
-    # De-duplicate by URL while preserving order
+    # Deduplicate URLs in their collected order; the HTML-map fallback has no guaranteed source order.
     $Seen = @{}
     $UniquePairs = New-Object -TypeName System.Collections.Generic.List[object]
     foreach ($Pair in $EventPairs) {
@@ -506,6 +852,7 @@ function Get-EventLinkPairs {
     return $UniquePairs
 }
 
+# Read the main-window fields into a PSCredential without performing a sign-in request.
 function Get-CurrentCredential {
     if ((Test-IsBlank $Script:TxtUser.Text) -or [System.String]::IsNullOrEmpty($Script:TxtPass.Text)) { return $null }
     $SecurePass = ConvertTo-SecureString -String $Script:TxtPass.Text -AsPlainText -Force
@@ -518,7 +865,21 @@ function Get-CurrentCredential {
 # ==================================================
 # MARK: Credential Prompt
 # ==================================================
-# Startup sign-in window. Returns a PSCredential, or $null if the user chooses public content only.
+<#
+## Credential Prompt
+### Purpose and Current Status
+Retain the legacy modal credential dialog without changing its implementation. The current
+application launch and Sign In button do not call `Show-CredentialPrompt`; authentication
+now occurs from the username/password controls in the main window.
+### Legacy Contract
+If explicitly called, the dialog returns a PSCredential when its OK action is selected
+with complete fields, or null when skipped/closed or fields are incomplete. It disposes
+its own form before returning and does not itself authenticate or query conferences.
+### Maintenance Note
+The dialog's historical captions describe the older workflow. They are retained as
+legacy UI text, not documentation of the current application startup behavior.
+#>
+# Retained legacy dialog: returns entered credentials or null; not invoked at startup.
 function Show-CredentialPrompt {
     $Dlg = New-Object -TypeName System.Windows.Forms.Form
     $Dlg.Text = 'MMS Sched Sign-in'
@@ -531,7 +892,7 @@ function Show-CredentialPrompt {
     $Dlg.Font = New-Object -TypeName System.Drawing.Font -ArgumentList 'Segoe UI', 9
 
     $LblInfo = New-Object -TypeName System.Windows.Forms.Label
-    $LblInfo.Text = 'Enter your Sched credentials. The script will query all MMS conferences and list the ones you can access. Choose Skip for public content only.'
+    $LblInfo.Text = 'Enter your Sched credentials. The script will query current and upcoming MMS conferences and list the ones you can access. Choose Skip for public content only.'
     $LblInfo.Location = New-Object -TypeName System.Drawing.Point -ArgumentList 15, 12
     $LblInfo.Size = New-Object -TypeName System.Drawing.Size -ArgumentList 390, 50
     $Dlg.Controls.Add($LblInfo)
@@ -593,8 +954,34 @@ function Show-CredentialPrompt {
 # ==================================================
 # MARK: Authentication and Conference Query Functions
 # ==================================================
-# Opens a web session for a conference.
-# If credentials are supplied, a Sched login is attempted. Non-private conferences fall back to anonymous access.
+<#
+## Authentication and Conference Query Functions
+### Purpose
+Manage conference-specific HTTP sessions, access checks, schedule caches, and discovery scopes.
+### Authentication and Schedule Loading
+`Connect-SchedConference` returns Success/Mode/Message and stores successful HTTP sessions.
+Known Private entries reject anonymous access. A rejected login on a non-private entry may
+fall back to public mode; the Sign In handler accepts only Authenticated mode as verification.
+`Get-ConferenceEvents` reads `/list/descriptions`, normalizes titles, omits configured
+activity-title patterns, and caches session objects. `Test-ConferenceAccess` refreshes one
+conference's HTTP/cache/session data and updates its access status and session count.
+### Discovery and Query Modes
+| Mode | Targets and State Handling |
+| --- | --- |
+| `SelectedOnly` | Query checked entries across years; retain other results; do not probe. |
+| `DiscoverOnly` | Probe unknown year/suffix IDs and append valid entries; do not load sessions. |
+| `PastOnly` | Probe older candidates and query older entries not yet queried; retain loaded results. |
+| No switch | Reset loaded sessions/query statuses, probe, then query the year scope. |
+The GUI uses SelectedOnly and DiscoverOnly; the remaining modes are retained function paths.
+`Test-ConferenceExists` verifies the final response host with a 15-second probe timeout.
+`Confirm-ConferenceSession` requires an active verified credential and a fresh Authenticated
+connection for download access; cached sessions and public fallback are not sufficient.
+### Failure and Cancellation
+Access outcomes are stored per conference; request failures are logged. Discovery/query loops
+observe cancellation between candidates/conferences and restore busy-state controls in finally.
+#>
+# Open a conference HTTP session and return its success, access mode, and diagnostic message.
+# Supplied credentials trigger login; non-private sites may fall back to anonymous access.
 function Connect-SchedConference {
     param(
         [Parameter(Mandatory = $true)][string]$ConfId,
@@ -621,14 +1008,14 @@ function Connect-SchedConference {
         $UserName = $Credential.UserName
         $Password = $Credential.GetNetworkCredential().Password
 
-        # Updated POST body (v1.3 / v1.7.4 of the original script)
+        # URL-encode the original script's Sched login fields and release temporary password text.
         $Body = 'landing_conf=' + [System.Uri]::EscapeDataString($SchedBaseURL) + '&username=' + [System.Uri]::EscapeDataString($UserName) + '&password=' + [System.Uri]::EscapeDataString($Password) + '&login='
         $Password = $null
 
         $Web = Invoke-SchedRequest -Uri $SchedLoginURL -WebSession $WebSess -Method 'POST' -Body $Body -Headers @{ Referer = $SchedLoginURL; Origin = $SchedBaseURL }
         $Body = $null
 
-        # If the login form is still present the login did not work
+        # A returned login form indicates rejection; only non-private sites allow anonymous fallback.
         if ($Web.Content -match $LoginFormPattern) {
             if ($Type -ne 'Private') {
                 $WebSess = New-Object -TypeName Microsoft.PowerShell.Commands.WebRequestSession
@@ -648,7 +1035,7 @@ function Connect-SchedConference {
     }
 }
 
-# Retrieves (and caches) the list of sessions for a conference using the existing web session
+# Return cached schedule objects unless Refresh is requested; otherwise use the existing HTTP session.
 function Get-ConferenceEvents {
     param(
         [Parameter(Mandatory = $true)][string]$ConfId,
@@ -671,11 +1058,11 @@ function Get-ConferenceEvents {
         if (Test-IsBlank $EventUrl) { continue }
         if (Test-IsBlank $EventTitle) { $EventTitle = $EventUrl }
 
-        # Strip capacity labels (FULL, LIMITED, FILLING, etc.) that Sched appends to the anchor text
+        # Remove trailing capacity labels so schedule availability text does not become part of the title.
         $EventTitle = $EventTitle -replace '\s*(FULL|LIMITED|SOLD OUT|WAITLIST|FILLING)\s*$', ''
         $EventTitle = $EventTitle.Trim()
 
-        # Skip social/networking/activity events that never have downloadable content
+        # Omit configured social/activity title patterns intended to exclude non-content sessions.
         if ($EventTitle -match '^Fishing with' -or $EventTitle -match '^Career Connections' -or
             $EventTitle -match '^Great Big Game Show' -or $EventTitle -match 'Escape Game') { continue }
 
@@ -691,7 +1078,7 @@ function Get-ConferenceEvents {
     return @($Script:EventCache[$ConfId])
 }
 
-# Tests one conference: connects, reads the schedule, updates Access / SessionCount, and loads its sessions
+# Refresh one conference's connection, schedule, Access, and SessionCount without resetting other entries.
 function Test-ConferenceAccess {
     param(
         [Parameter(Mandatory = $true)][object]$Conf,
@@ -700,11 +1087,18 @@ function Test-ConferenceAccess {
 
     $Conf.Access = 'Checking...'
     $Conf.SessionCount = 0
+    $Conf.Queried = $true
+
+    # Replace this conference's loaded sessions, including their old session checkbox states.
+    for ($SessIndex = $Script:SessionList.Count - 1; $SessIndex -ge 0; $SessIndex--) {
+        if ($Script:SessionList[$SessIndex].ConfId -eq $Conf.Id) { $Script:SessionList.RemoveAt($SessIndex) }
+    }
 
     $Script:Sessions.Remove($Conf.Id)
     $Script:EventCache.Remove($Conf.Id)
 
     $Connect = Connect-SchedConference -ConfId $Conf.Id -Type $Conf.Type -Credential $Credential
+    if (Test-CancellationRequested) { $Conf.Access = 'Cancelled'; return }
     if (-not $Connect.Success) {
         $Conf.Access = $Connect.Message
         Write-Log -Message ($Conf.Id + ': ' + $Connect.Message) -Level 'WARN'
@@ -725,19 +1119,20 @@ function Test-ConferenceAccess {
     }
     catch {
         $Err = $_
+        if (Test-CancellationRequested) { $Conf.Access = 'Cancelled'; return }
         $Conf.Access = 'Unable to read schedule'
         Write-Log -Message ($Conf.Id + ': unable to retrieve session list - ' + $Err.Exception.Message) -Level 'WARN'
     }
 }
 
-# Returns $true if mms<ConfId>.sched.com is a real Sched site (not a redirect to the Sched home page)
+# Accept a discovery candidate only when the final response host matches mms<ConfId>.sched.com.
 function Test-ConferenceExists {
     param([Parameter(Mandatory = $true)][string]$ConfId)
 
     $ExpectedHost = 'mms' + $ConfId + '.sched.com'
     $Url = 'https://' + $ExpectedHost + '/list/descriptions'
     try {
-        $Resp = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 15 -ErrorAction Stop
+        $Resp = Invoke-CancellableWebRequest -RequestParameters @{ Uri = $Url; UseBasicParsing = $true; TimeoutSec = 15; ErrorAction = 'Stop' }
         $FinalHost = ''
         if ($Resp.BaseResponse.ResponseUri) { $FinalHost = [string]$Resp.BaseResponse.ResponseUri.Host }
         elseif ($Resp.BaseResponse.RequestMessage.RequestUri) { $FinalHost = [string]$Resp.BaseResponse.RequestMessage.RequestUri.Host }
@@ -748,12 +1143,16 @@ function Test-ConferenceExists {
     }
 }
 
-# Probes Sched for MMS conference IDs that are not in the known catalog
+# Probe unknown year/suffix candidates within the supplied range and append matching Sched sites.
 function Find-NewConferences {
-    $LastYear = (Get-Date).Year + 1
-    for ($Year = $Script:ProbeStartYear; $Year -le $LastYear; $Year++) {
+    param(
+        [Parameter(Mandatory = $true)][int]$StartYear,
+        [Parameter(Mandatory = $true)][int]$EndYear
+    )
+
+    for ($Year = $StartYear; $Year -le $EndYear; $Year++) {
         foreach ($Suffix in $Script:ProbeSuffixes) {
-            if ($Script:CancelRequested) { return }
+            if (Test-CancellationRequested) { return }
             $ProbeId = [string]$Year + $Suffix
             if (Get-ConferenceInfo -ConfId $ProbeId) { continue }
 
@@ -766,41 +1165,99 @@ function Find-NewConferences {
     }
 }
 
-# Full discovery: probe for new IDs, then test every conference and load sessions for accessible ones
+# Coordinate query/discovery scopes; the GUI invokes one mode switch at a time.
+#   SelectedOnly: refresh checked conferences across years without probing or clearing other results.
+#   DiscoverOnly: append discovered IDs without querying sessions or resetting existing results.
+#   PastOnly: probe past years and query past entries not already queried, retaining loaded results.
+#   Default: reset query results, probe IDs, and query all years or current/future according to Show past years.
 function Invoke-ConferenceDiscovery {
-    if ($Script:IsBusy) { return }
+    param([switch]$PastOnly, [switch]$SelectedOnly, [switch]$DiscoverOnly)
 
-    $Script:Credential = Get-CurrentCredential
+    if ($Script:IsBusy -or ($Script:Form -and ($Script:Form.IsDisposed -or $Script:Form.ShutdownRequested))) { return }
+
+    Sync-ConferenceChecks
+    $SelectedConferences = @($Script:ConferenceCatalog | Where-Object { $_.Checked })
+    if ($SelectedOnly -and $SelectedConferences.Count -eq 0) {
+        Set-Status -Text 'No conferences selected.'
+        return
+    }
     $Script:CancelRequested = $false
+    $CurrentYear = (Get-Date).Year
+    $IncludePast = [bool]$Script:ChkPast.Checked
     Set-UiBusy -Busy $true
 
-    $Script:SessionList.Clear()
-    Update-SessionListView
+    if (-not $PastOnly -and -not $SelectedOnly -and -not $DiscoverOnly) {
+        # Only the retained no-switch path resets loaded sessions and catalog query statuses.
+        $Script:SessionList.Clear()
+        foreach ($Conf in $Script:ConferenceCatalog) {
+            $Conf.Queried = $false
+            $Conf.Access = 'Not queried'
+            $Conf.SessionCount = 0
+        }
+        Update-ConferenceListView
+        Update-SessionListView
+    }
 
     try {
-        if ($Script:Credential) { Write-Log -Message ('Querying MMS conferences as ' + $Script:Credential.UserName + ' ...') }
-        else { Write-Log -Message 'Querying MMS conferences (public content only) ...' }
+        if ($SelectedOnly) { $ScopeText = 'selected conferences' }
+        elseif ($PastOnly) { $ScopeText = 'past years' }
+        elseif ($IncludePast) { $ScopeText = 'all years' }
+        else { $ScopeText = ('{0} and later' -f $CurrentYear) }
 
-        if ($Script:ChkProbe.Checked) { Find-NewConferences }
+        if ($Script:Credential) { Write-Log -Message ('Querying MMS conferences (' + $ScopeText + ') as ' + $Script:Credential.UserName + ' ...') }
+        else { Write-Log -Message ('Querying MMS conferences (' + $ScopeText + ', public content only) ...') }
 
-        $Total = $Script:ConferenceCatalog.Count
+        # Selected queries never probe; other modes discover unknown IDs in their configured year scope.
+        if (-not $SelectedOnly) {
+            if ($PastOnly) { Find-NewConferences -StartYear $Script:ProbeStartYear -EndYear ($CurrentYear - 1) }
+            elseif ($IncludePast) { Find-NewConferences -StartYear $Script:ProbeStartYear -EndYear ($CurrentYear + 1) }
+            else { Find-NewConferences -StartYear $CurrentYear -EndYear ($CurrentYear + 1) }
+        }
+
+        if (Test-CancellationRequested) { Set-Status -Text 'Conference query cancelled.'; return }
+        if ($DiscoverOnly) {
+            Update-ConferenceListView
+            Set-Status -Text 'Conference discovery complete.'
+            return
+        }
+
+        # Build targets from checked entries, unqueried past entries, or the retained default year scope.
+        $Targets = New-Object -TypeName System.Collections.Generic.List[object]
+        foreach ($Conf in $Script:ConferenceCatalog) {
+            $IsPast = Test-IsPastConference -Conf $Conf
+            if ($SelectedOnly) {
+                if ($SelectedConferences -contains $Conf) { $Targets.Add($Conf) }
+            }
+            elseif ($PastOnly) {
+                if ($IsPast -and -not $Conf.Queried) { $Targets.Add($Conf) }
+            }
+            elseif ($IncludePast -or -not $IsPast) {
+                $Targets.Add($Conf)
+            }
+        }
+
+        $Total = $Targets.Count
         $Script:PbMain.Minimum = 0
         $Script:PbMain.Maximum = [System.Math]::Max($Total, 1)
         $Script:PbMain.Value = 0
 
         for ($Index = 0; $Index -lt $Total; $Index++) {
             if ($Script:CancelRequested) { Write-Log -Message 'Query cancelled by user.' -Level 'WARN'; break }
-            $Conf = $Script:ConferenceCatalog[$Index]
+            $Conf = $Targets[$Index]
             Set-Status -Text ('Checking {0} of {1}: {2} ({3})' -f ($Index + 1), $Total, $Conf.Name, $Conf.Id)
             Test-ConferenceAccess -Conf $Conf -Credential $Script:Credential
+            if (Test-CancellationRequested) { Set-Status -Text 'Conference query cancelled.'; return }
             Update-ConferenceListView
             $Script:PbMain.Value = $Index + 1
         }
 
-        $Accessible = @($Script:ConferenceCatalog | Where-Object { $_.Access -like 'Yes*' }).Count
+        $Accessible = @($Script:ConferenceCatalog | Where-Object { $_.Access -like 'Yes*' -and -not (Test-IsHiddenConference -Conf $_) }).Count
+        Update-ConferenceListView
         Update-SessionListView
-        Set-Status -Text ('Query complete. You can access {0} conference(s) with {1} session(s). Check conferences to filter sessions, then download.' -f $Accessible, $Script:SessionList.Count)
-        Write-Log -Message ('Query complete. Accessible conferences: {0} of {1}. Sessions loaded: {2}' -f $Accessible, $Total, $Script:SessionList.Count)
+        $StatusText = 'Query complete ({0}). You can access {1} conference(s) with {2} loaded session(s).' -f $ScopeText, $Accessible, $Script:SessionList.Count
+        if (-not $IncludePast -and -not $SelectedOnly) { $StatusText += ' Check "Show past years" to display older conferences.' }
+        Set-Status -Text $StatusText
+        Write-Log -Message ('Query complete ({0}). Conferences queried: {1}. Accessible: {2}. Sessions loaded: {3}' -f $ScopeText, $Total, $Accessible, $Script:SessionList.Count)
     }
     catch {
         $Err = $_
@@ -811,20 +1268,27 @@ function Invoke-ConferenceDiscovery {
     }
 }
 
-# Makes sure a web session exists for the conference (reconnects with current credentials if needed)
+# Verify authenticated conference access before downloading; cached anonymous sessions are insufficient.
 function Confirm-ConferenceSession {
     param([Parameter(Mandatory = $true)][string]$ConfId)
 
-    if ($Script:Sessions.ContainsKey($ConfId)) { return $true }
+    if (-not $Script:Credential) {
+        Set-Status -Text 'Sign in before downloading conference files.'
+        Write-Log -Message ('Download blocked for ' + $ConfId + ': sign-in required.') -Level 'WARN'
+        return $false
+    }
 
     $Conf = Get-ConferenceInfo -ConfId $ConfId
     $ConfType = 'Discovered'
     if ($Conf) { $ConfType = $Conf.Type }
 
-    Write-Log -Message ('Opening session for ' + $ConfId + ' ...')
+    $Script:Sessions.Remove($ConfId)
+    Write-Log -Message ('Verifying authenticated download access for ' + $ConfId + ' ...')
     $Connect = Connect-SchedConference -ConfId $ConfId -Type $ConfType -Credential $Script:Credential
-    if (-not $Connect.Success) {
-        Write-Log -Message ('FAILED: login to https://mms' + $ConfId + '.sched.com - ' + $Connect.Message) -Level 'ERROR'
+    if (-not $Connect.Success -or $Connect.Mode -ne 'Authenticated') {
+        $Script:Sessions.Remove($ConfId)
+        Set-Status -Text ('Download blocked for ' + $ConfId + ': sign-in/access not verified.')
+        Write-Log -Message ('Download blocked for https://mms' + $ConfId + '.sched.com: ' + $Connect.Message) -Level 'WARN'
         return $false
     }
     return $true
@@ -836,7 +1300,34 @@ function Confirm-ConferenceSession {
 # ==================================================
 # MARK: Download Functions
 # ==================================================
-# Downloads one file. Returns Downloaded / Updated / Skipped / Failed
+<#
+## Download Functions
+### Purpose
+Download Sched-hosted attachments and optional session metadata, then summarize the job.
+### File and Folder Handling
+`Save-SessionFile` returns Downloaded, Updated, Skipped, or Failed. Existing files are
+skipped by default. Optional hash comparison downloads to `.new`, replaces differing
+content, and removes matching/failed temporary copies. Failed new downloads are removed.
+`Save-ConferenceSession` builds `<DownloadLocation>\mms<Id>\<SanitizedSessionTitle>`,
+retrieves the event page, optionally writes Session Info.txt, and deduplicates hosted links.
+File names are decoded/sanitized; long output paths are shortened toward 255 characters
+while retaining the extension. This is inherited path handling, not a general long-path solution.
+### Job Lifecycle and Reporting
+`Start-SessionDownload` reads the GUI options, resets the current job's result list,
+ensures each conference has an HTTP session, and advances progress per session.
+Before any session content is written, authenticate each distinct target conference once.
+If any conference fails that preflight, stop the entire job without writing session metadata
+or attachments. The shared job entry point also rejects attempts without completed Sign In.
+Outcomes include file statuses, session-page/login failures, and sessions without files.
+The finally block logs totals, exports any result records, and restores operation controls.
+### Cancellation and Scope
+Cancellation is checked between sessions/files and while HTTP requests are pending.
+Partial new downloads and hash-check temporary files are removed; completed files remain.
+Cancelled jobs skip result export, and shutdown avoids further UI updates.
+Only discovered hosted-file URLs are downloaded. Writing metadata and discovering attachments
+depend on Sched HTML structure, and metadata generation can occur even when no files exist.
+#>
+# Download or compare one hosted file; clean up incomplete output on failure or cancellation.
 function Save-SessionFile {
     param(
         [Parameter(Mandatory = $true)][string]$DownloadUrl,
@@ -845,6 +1336,7 @@ function Save-SessionFile {
         [bool]$ReDownloadIfHashIsDifferent = $false
     )
 
+    if (Test-CancellationRequested) { return 'Cancelled' }
     $FileLabel = Split-Path -Path $OutputFilePath -Leaf
 
     if ((Test-Path -LiteralPath $OutputFilePath) -eq $false) {
@@ -855,8 +1347,9 @@ function Save-SessionFile {
             return 'Downloaded'
         }
         catch {
-            Write-Log -Message ('FAILED: ' + $FileLabel) -Level 'ERROR'
             if (Test-Path -LiteralPath $OutputFilePath) { Remove-Item -LiteralPath $OutputFilePath -Force -ErrorAction SilentlyContinue }
+            if (Test-CancellationRequested) { return 'Cancelled' }
+            Write-Log -Message ('FAILED: ' + $FileLabel) -Level 'ERROR'
             return 'Failed'
         }
     }
@@ -878,8 +1371,9 @@ function Save-SessionFile {
             return 'Skipped'
         }
         catch {
-            Write-Log -Message ('FAILED: ' + $FileLabel) -Level 'ERROR'
             if (Test-Path -LiteralPath $TempPath) { Remove-Item -LiteralPath $TempPath -Force -ErrorAction SilentlyContinue }
+            if (Test-CancellationRequested) { return 'Cancelled' }
+            Write-Log -Message ('FAILED: ' + $FileLabel) -Level 'ERROR'
             return 'Failed'
         }
     }
@@ -888,7 +1382,7 @@ function Save-SessionFile {
     return 'Skipped'
 }
 
-# Downloads every hosted file for one session (and writes Session Info.txt unless excluded)
+# Download a session's hosted attachments and optionally write its description/speaker metadata.
 function Save-ConferenceSession {
     param(
         [Parameter(Mandatory = $true)][string]$ConfId,
@@ -898,6 +1392,7 @@ function Save-ConferenceSession {
         [bool]$ReDownloadIfHashIsDifferent = $false
     )
 
+    if (Test-CancellationRequested) { return }
     $WebSess = $Script:Sessions[$ConfId]
     $SchedBaseURL = 'https://mms' + $ConfId + '.sched.com'
     $SessionDownloadPath = $DownloadLocation + '\mms' + $ConfId
@@ -905,7 +1400,7 @@ function Save-ConferenceSession {
     $EventTitle = [string]$EventItem.Title
     $EventUrl = [string]$EventItem.Url
 
-    # Generate session info string
+    # Seed the metadata text and sanitize the title used for this session's destination folder.
     $SessionInfoText = 'Session Title: ' + "`r`n" + $EventTitle + "`r`n`r`n"
     $DownloadTitle = $EventTitle -replace '[^A-Za-z0-9-_. ]', ''
     $DownloadTitle = $DownloadTitle.Trim()
@@ -914,10 +1409,10 @@ function Save-ConferenceSession {
         $DownloadTitle = [System.Uri]::UnescapeDataString($EventUrl) -replace '\W+', '_'
     }
 
-    ## Set the download destination:
+    # Nest the sanitized session folder under the conference's mms<Id> folder.
     $DownloadPath = $SessionDownloadPath + '\' + $DownloadTitle
 
-    # Fetch the individual event page. Hosted files are discovered there.
+    # Read the individual event page containing metadata and hosted attachment links.
     $SessionPage = $null
     try {
         $SessionPage = Invoke-SchedRequest -Uri ($SchedBaseURL + '/' + $EventUrl) -WebSession $WebSess
@@ -926,6 +1421,7 @@ function Save-ConferenceSession {
         $SessionPage = $null
     }
 
+    if (Test-CancellationRequested) { return }
     if (-not $SessionPage) {
         Write-Log -Message ('FAILED: ' + $EventTitle) -Level 'ERROR'
         Add-DownloadResult -ConfId $ConfId -SessionTitle $EventTitle -FileName '' -Status 'Failed (session page)' -Path ''
@@ -934,7 +1430,7 @@ function Save-ConferenceSession {
 
     $SessionLinkInfo = $SessionPage.Content.Replace("`r", '').Replace("`n", '')
 
-    ## Get session info if required:
+    # Extract supported description/speaker blocks and write Session Info.txt unless excluded.
     if (-not $ExcludeSessionDetails) {
         $DescriptionPattern = '<div class="tip-description">(?<description>.*?)(<div class="tip-roles">|<div class="sched-event-details-timeandplace">)'
         $DescriptionMatches = [System.Text.RegularExpressions.Regex]::Matches($SessionLinkInfo, $DescriptionPattern, $Script:RegexIgnoreCase)
@@ -952,7 +1448,7 @@ function Save-ConferenceSession {
         Out-File -LiteralPath ($DownloadPath + '\Session Info.txt') -InputObject $SessionInfoText -Force -Encoding UTF8
     }
 
-    # Collect hosted-file links (de-duplicated by href)
+    # Collect hosted-file links from parsed anchors, deduplicating by their href values.
     $Downloads = New-Object -TypeName System.Collections.Generic.List[object]
     $SeenHrefs = @{}
     if ($SessionPage.Links) {
@@ -967,7 +1463,7 @@ function Save-ConferenceSession {
         }
     }
 
-    # Fallback: parse hosted-files URLs directly from HTML when Links collection is sparse
+    # Fall back to raw HTML hosted-file URL extraction when parsed anchors found no downloads.
     if ($Downloads.Count -eq 0 -and $SessionPage.Content) {
         $HostedFilesRegex = 'href="((?:https?:)?//hosted-files\.sched\.co/[^"]+)"'
         $HostedMatches = [System.Text.RegularExpressions.Regex]::Matches($SessionPage.Content, $HostedFilesRegex, $Script:RegexIgnoreCase)
@@ -987,7 +1483,7 @@ function Save-ConferenceSession {
     }
 
     foreach ($Download in $Downloads) {
-        if ($Script:CancelRequested) { return }
+        if (Test-CancellationRequested) { return }
 
         $DownloadUrl = [string]$Download.href
         if ($DownloadUrl -like '//hosted-files.sched.co/*') {
@@ -998,14 +1494,14 @@ function Save-ConferenceSession {
         }
 
         $FileName = Split-Path -Path $DownloadUrl -Leaf
-        # Replace HTTP Encoding Characters (e.g. %20) with the proper equivalent.
+        # Decode URL-encoded filename text, such as %20 for a space.
         $FileName = [System.Web.HttpUtility]::UrlDecode($FileName)
-        # Replace non-standard characters
+        # Keep the inherited filename-safe character set before constructing the output path.
         $FileName = $FileName -replace '[^A-Za-z0-9\.\-_ ]', ''
 
         $OutputFilePath = $DownloadPath + '\' + $FileName
 
-        # Reduce Total Path to 255 characters.
+        # Shorten paths at or above 255 characters while preserving the file extension.
         $OutputFilePathLen = $OutputFilePath.Length
         if ($OutputFilePathLen -ge 255) {
             $FileExt = [System.IO.Path]::GetExtension($OutputFilePath)
@@ -1017,15 +1513,21 @@ function Save-ConferenceSession {
         if ((Test-Path -LiteralPath $DownloadPath) -eq $false) { New-Item -ItemType Directory -Force -Path $DownloadPath | Out-Null }
 
         $FileStatus = Save-SessionFile -DownloadUrl $DownloadUrl -OutputFilePath $OutputFilePath -WebSession $WebSess -ReDownloadIfHashIsDifferent $ReDownloadIfHashIsDifferent
+        if (Test-CancellationRequested) { return }
         Add-DownloadResult -ConfId $ConfId -SessionTitle $EventTitle -FileName $FileName -Status $FileStatus -Path $OutputFilePath
     }
 }
 
-# Runs a download job for a list of session objects (ConfId / Title / Url)
+# Run the supplied session targets with current GUI options, progress, cancellation, and final export.
 function Start-SessionDownload {
     param([Parameter(Mandatory = $true)][object[]]$Targets)
 
-    if ($Script:IsBusy) { return }
+    if ($Script:IsBusy -or ($Script:Form -and ($Script:Form.IsDisposed -or $Script:Form.ShutdownRequested))) { return }
+    if (-not $Script:Credential) {
+        Set-Status -Text 'Sign in before downloading conference files.'
+        Write-Log -Message 'Download blocked: complete Sign In before starting a download.' -Level 'WARN'
+        return
+    }
 
     $DownloadLocation = $Script:TxtLocation.Text.Trim().TrimEnd('\')
     if (Test-IsBlank $DownloadLocation) { $DownloadLocation = $Script:DefaultDownloadLocation }
@@ -1043,22 +1545,40 @@ function Start-SessionDownload {
     Write-Log -Message ('Base download folder is ' + $DownloadLocation)
     Write-Log -Message ('Starting download of ' + $Targets.Count + ' session(s).')
 
+    $DownloadAccess = @{}
+    $PreflightStatus = $null
     try {
+        foreach ($Target in $Targets) {
+            if (Test-CancellationRequested) {
+                $PreflightStatus = 'Download cancelled during access verification. No conference files were written.'
+                return
+            }
+            if ($DownloadAccess.ContainsKey($Target.ConfId)) { continue }
+            Set-Status -Text ('Verifying download access: ' + $Target.ConfId)
+            if (-not (Confirm-ConferenceSession -ConfId $Target.ConfId)) {
+                if (Test-CancellationRequested) { $PreflightStatus = 'Download cancelled during access verification. No conference files were written.' }
+                else { $PreflightStatus = 'Download blocked for ' + $Target.ConfId + ': authenticated access required. No conference files were written.' }
+                return
+            }
+            $DownloadAccess[$Target.ConfId] = $true
+        }
+
         for ($Index = 0; $Index -lt $Targets.Count; $Index++) {
             if ($Script:CancelRequested) { Write-Log -Message 'Download cancelled by user.' -Level 'WARN'; break }
 
             $Target = $Targets[$Index]
             Set-Status -Text ('Session {0} of {1}: [{2}] {3}' -f ($Index + 1), $Targets.Count, $Target.ConfId, $Target.Title)
 
-            if (-not (Confirm-ConferenceSession -ConfId $Target.ConfId)) {
+            if (-not $DownloadAccess.ContainsKey($Target.ConfId)) {
                 Add-DownloadResult -ConfId $Target.ConfId -SessionTitle $Target.Title -FileName '' -Status 'Failed (login)' -Path ''
                 $Script:PbMain.Value = $Index + 1
                 continue
             }
 
             Save-ConferenceSession -ConfId $Target.ConfId -EventItem $Target -DownloadLocation $DownloadLocation -ExcludeSessionDetails $ExcludeDetails -ReDownloadIfHashIsDifferent $ReDownload
+            if (Test-CancellationRequested) { break }
             $Script:PbMain.Value = $Index + 1
-            [System.Windows.Forms.Application]::DoEvents()
+            Update-UiEvents
         }
     }
     catch {
@@ -1072,10 +1592,19 @@ function Start-SessionDownload {
         $Failed = @($Script:Results | Where-Object { $_.Status -like 'Failed*' }).Count
         $NoFiles = @($Script:Results | Where-Object { $_.Status -eq 'No files' }).Count
         $Summary = 'Finished. Downloaded: {0} | Updated: {1} | Skipped: {2} | Failed: {3} | Sessions without files: {4}' -f $Downloaded, $Updated, $Skipped, $Failed, $NoFiles
+        if (Test-CancellationRequested) { $Summary = 'Download cancelled. Completed files were kept; partial downloads were removed.' }
+        if ($PreflightStatus) { $Summary = $PreflightStatus }
         Write-Log -Message $Summary
         Set-Status -Text $Summary
-        Export-DownloadResults
-        Set-UiBusy -Busy $false
+        try {
+            if (-not (Test-CancellationRequested)) { Export-DownloadResults }
+        }
+        catch {
+            Write-Log -Message ('Result export failed after downloads completed: ' + $_.Exception.Message) -Level 'ERROR'
+        }
+        finally {
+            Set-UiBusy -Busy $false
+        }
     }
 }
 # ==================================================
@@ -1085,12 +1614,30 @@ function Start-SessionDownload {
 # ==================================================
 # MARK: Export Functions
 # ==================================================
+<#
+## Export Functions
+### Purpose
+Persist the current download job's result records as a timestamped report under OutputRoot.
+### Report Schema and Naming
+Reports contain Timestamp, Conference, Session, File, Status, and Path. Their filename
+starts with `yyyy-MM-dd_HHmm-MMS-Download-Results`, followed by `.xlsx` or `.csv`.
+Snapshot the generic result list with ToArray() to avoid PowerShell array-binder errors;
+the same snapshot implementation works in Windows PowerShell 5.1 and PowerShell 7.
+### Preferred Export and Fallback
+When ImportExcel is available, import it and export the Results worksheet with automatic
+column sizing, a frozen header row, and the currently configured Light21 table style.
+If the module is absent or Excel export throws, automatically attempt UTF-8 CSV export.
+CSV/export errors are logged; no report is attempted when the result collection is empty.
+### Destination
+Reports always use `OutputRoot`, not the GUI's session-content download folder.
+#>
+# Export a nonempty result collection to Excel when possible, otherwise fall back to CSV.
 function Export-DownloadResults {
-    if ($Script:Results.Count -eq 0) { return }
+    if ($Script:Results.Count -eq 0 -or (Test-CancellationRequested)) { return }
 
     $Stamp = Get-Date -Format 'yyyy-MM-dd_HHmm'
     $BaseName = $Stamp + '-MMS-Download-Results'
-    $Data = @($Script:Results)
+    $Data = $Script:Results.ToArray()
     $Exported = $false
 
     if (Get-Module -ListAvailable -Name ImportExcel) {
@@ -1126,27 +1673,48 @@ function Export-DownloadResults {
 # ==================================================
 # MARK: GUI State Functions
 # ==================================================
+<#
+## GUI State Functions
+### Purpose
+Synchronize checkbox state with underlying objects and rebuild list views without recursive handlers.
+### Selection and Filtering
+`Sync-ConferenceChecks` and `Sync-SessionChecks` copy displayed checkbox states to each
+item's tagged model object before a refresh. `Update-ConferenceListView` keeps catalog
+order and applies year/access visibility settings, except that manual entries stay visible.
+`Update-SessionListView` applies year visibility, checked-conference scope, and the title/ID
+text filter. With no conferences checked, it shows loaded sessions not hidden by year.
+Session checkbox state belongs to the model; changing text filters does not clear it.
+### Operation Controls
+`Set-UiBusy` guards concurrent operations, disables the listed action/credential controls,
+and enables Cancel while busy. Download actions additionally require an active verified
+credential, including after an operation finishes. List rebuilding temporarily sets SuppressEvents and uses
+BeginUpdate/EndUpdate. `Get-CheckedConferences` additionally requires an accessible status
+for bulk conference downloads; it is not the target selector used by Query Selected.
+#>
+# Save conference checkbox state from visible rows to their catalog objects.
 function Sync-ConferenceChecks {
     if (-not $Script:LvConf) { return }
     foreach ($Item in $Script:LvConf.Items) { $Item.Tag.Checked = [bool]$Item.Checked }
 }
 
+# Save displayed session checkbox state before rebuilding or starting a download.
 function Sync-SessionChecks {
     if (-not $Script:LvSess) { return }
     foreach ($Item in $Script:LvSess.Items) { $Item.Tag.Checked = [bool]$Item.Checked }
 }
 
-# Shows only accessible conferences unless "Show unavailable conferences" is checked
+# Rebuild the ordered catalog display using Show past years/access filters, preserving manual entries.
 function Update-ConferenceListView {
-    if (-not $Script:LvConf -or $Script:LvConf.IsDisposed) { return }
+    if (-not $Script:LvConf -or $Script:LvConf.IsDisposed -or $Script:Form.ShutdownRequested) { return }
 
     $Script:SuppressEvents = $true
     Sync-ConferenceChecks
     $Script:LvConf.BeginUpdate()
     $Script:LvConf.Items.Clear()
     foreach ($Conf in $Script:ConferenceCatalog) {
+        if (Test-IsHiddenConference -Conf $Conf) { continue }
         $IsAccessible = ([string]$Conf.Access -like 'Yes*')
-        if (-not $IsAccessible -and -not $Script:ChkShowAll.Checked) { continue }
+        if (-not $IsAccessible -and -not $Script:ChkShowAll.Checked -and -not $Conf.Manual) { continue }
 
         $Item = New-Object -TypeName System.Windows.Forms.ListViewItem -ArgumentList $Conf.Name
         [void]$Item.SubItems.Add($Conf.Id)
@@ -1159,18 +1727,22 @@ function Update-ConferenceListView {
     }
     $Script:LvConf.EndUpdate()
     $Script:SuppressEvents = $false
-    [System.Windows.Forms.Application]::DoEvents()
+    Update-UiEvents
 }
 
-# Shows sessions of the checked conferences (all loaded sessions if none are checked), then applies the text filter
+# Show loaded sessions in the checked/year-visible conference scope, then apply the title/ID filter.
 function Update-SessionListView {
-    if (-not $Script:LvSess -or $Script:LvSess.IsDisposed) { return }
+    if (-not $Script:LvSess -or $Script:LvSess.IsDisposed -or $Script:Form.ShutdownRequested) { return }
 
     $Script:SuppressEvents = $true
     Sync-SessionChecks
 
     $CheckedIds = @{}
-    foreach ($Conf in $Script:ConferenceCatalog) { if ($Conf.Checked) { $CheckedIds[$Conf.Id] = $true } }
+    $HiddenIds = @{}
+    foreach ($Conf in $Script:ConferenceCatalog) {
+        if (Test-IsHiddenConference -Conf $Conf) { $HiddenIds[$Conf.Id] = $true; continue }
+        if ($Conf.Checked) { $CheckedIds[$Conf.Id] = $true }
+    }
 
     $Filter = $Script:TxtFilter.Text.Trim()
     $ShownCount = 0
@@ -1178,6 +1750,7 @@ function Update-SessionListView {
     $Script:LvSess.BeginUpdate()
     $Script:LvSess.Items.Clear()
     foreach ($Sess in $Script:SessionList) {
+        if ($HiddenIds.ContainsKey($Sess.ConfId)) { continue }
         if ($CheckedIds.Count -gt 0 -and -not $CheckedIds.ContainsKey($Sess.ConfId)) { continue }
         if ($Filter) {
             $InTitle = ($Sess.Title.IndexOf($Filter, [System.StringComparison]::OrdinalIgnoreCase) -ge 0)
@@ -1196,24 +1769,33 @@ function Update-SessionListView {
 
     $SelectedCount = @($Script:SessionList | Where-Object { $_.Checked }).Count
     $Script:LblSessCount.Text = 'Showing {0} of {1} session(s) | {2} selected' -f $ShownCount, $Script:SessionList.Count, $SelectedCount
-    [System.Windows.Forms.Application]::DoEvents()
+    Update-UiEvents
 }
 
+# Guard overlapping operations and switch the listed action/credential controls and Cancel button.
 function Set-UiBusy {
     param([bool]$Busy)
 
     $Script:IsBusy = $Busy
-    foreach ($Ctrl in @($Script:BtnQuery, $Script:BtnAddConf, $Script:BtnDlSelected, $Script:BtnDlAll, $Script:BtnBrowse)) {
+    if ($Script:Form -is [MmsContentForm]) {
+        $Script:Form.OperationActive = $Busy
+        if (-not $Busy) { $Script:Form.CompleteOperation() }
+        if ($Script:Form.IsDisposed -or $Script:Form.ShutdownRequested) { $Script:CancelRequested = $true; return }
+    }
+    foreach ($Ctrl in @($Script:BtnSignIn, $Script:TxtUser, $Script:TxtPass, $Script:BtnQuery, $Script:BtnDiscover, $Script:BtnAddConf, $Script:BtnDlSelected, $Script:BtnDlAll, $Script:BtnBrowse, $Script:ChkPast)) {
         if ($Ctrl -and -not $Ctrl.IsDisposed) { $Ctrl.Enabled = -not $Busy }
     }
+    foreach ($Ctrl in @($Script:BtnDlSelected, $Script:BtnDlAll)) {
+        if ($Ctrl -and -not $Ctrl.IsDisposed) { $Ctrl.Enabled = (-not $Busy -and $null -ne $Script:Credential) }
+    }
     if ($Script:BtnCancel -and -not $Script:BtnCancel.IsDisposed) { $Script:BtnCancel.Enabled = $Busy }
-    [System.Windows.Forms.Application]::DoEvents()
+    Update-UiEvents
 }
 
-# Returns the accessible conference objects that are checked
+# Return checked, accessible conferences not hidden by year for the bulk-download action.
 function Get-CheckedConferences {
     Sync-ConferenceChecks
-    return @($Script:ConferenceCatalog | Where-Object { $_.Checked -and ([string]$_.Access -like 'Yes*') })
+    return @($Script:ConferenceCatalog | Where-Object { $_.Checked -and ([string]$_.Access -like 'Yes*') -and -not (Test-IsHiddenConference -Conf $_) })
 }
 # ==================================================
 # ^^^^^ GUI State Functions ^^^^^
@@ -1222,7 +1804,22 @@ function Get-CheckedConferences {
 # ==================================================
 # MARK: Build GUI
 # ==================================================
-$Script:Form = New-Object -TypeName System.Windows.Forms.Form
+<#
+## Build GUI
+### Purpose
+Construct the main Windows Forms interface and retain references used by state functions/handlers.
+### Layout
+The default window is 1200 x 840 with a 1000 x 760 minimum. The top group contains
+credentials and conference actions; conference and session lists occupy the middle;
+download options, progress, status, and the multiline activity log appear below them.
+Anchors resize selected controls with the window; coordinates and column widths are explicit.
+### Initial State
+Show past years and Show unavailable conferences start checked, exposing all catalog entries.
+No sessions are preloaded. The password textbox is masked, the default download destination
+is populated, and Cancel starts disabled. Event handlers are registered in the next section;
+constructing the controls does not itself sign in, discover IDs, or query schedules.
+#>
+$Script:Form = New-Object -TypeName MmsContentForm
 $Script:Form.Text = 'MMS Session Content Downloader (Sched)'
 $Script:Form.Size = New-Object -TypeName System.Drawing.Size -ArgumentList 1200, 840
 $Script:Form.MinimumSize = New-Object -TypeName System.Drawing.Size -ArgumentList 1000, 760
@@ -1230,6 +1827,12 @@ $Script:Form.StartPosition = 'CenterScreen'
 $Script:Form.Font = New-Object -TypeName System.Drawing.Font -ArgumentList 'Segoe UI', 9
 
 # ---------- Credentials / Query group ----------
+<#
+### Credentials and Conference Actions
+Place Sign In immediately after the masked password field. Discover IDs appends candidates
+without loading sessions; Query Selected is in the conference panel. The second row
+also provides ID-only manual entry, Add and Query, and the Show past years visibility toggle.
+#>
 $GrpCreds = New-Object -TypeName System.Windows.Forms.GroupBox
 $GrpCreds.Text = 'Sched Credentials and Conference Discovery'
 $GrpCreds.Location = New-Object -TypeName System.Drawing.Point -ArgumentList 10, 8
@@ -1260,21 +1863,20 @@ $Script:TxtPass.Size = New-Object -TypeName System.Drawing.Size -ArgumentList 23
 $Script:TxtPass.UseSystemPasswordChar = $true
 $GrpCreds.Controls.Add($Script:TxtPass)
 
-$Script:BtnQuery = New-Object -TypeName System.Windows.Forms.Button
-$Script:BtnQuery.Text = 'Re-Query Conferences'
-$Script:BtnQuery.Location = New-Object -TypeName System.Drawing.Point -ArgumentList 655, 22
-$Script:BtnQuery.Size = New-Object -TypeName System.Drawing.Size -ArgumentList 160, 30
-$GrpCreds.Controls.Add($Script:BtnQuery)
+$Script:BtnSignIn = New-Object -TypeName System.Windows.Forms.Button
+$Script:BtnSignIn.Text = 'Sign In'
+$Script:BtnSignIn.Location = New-Object -TypeName System.Drawing.Point -ArgumentList 645, 22
+$Script:BtnSignIn.Size = New-Object -TypeName System.Drawing.Size -ArgumentList 90, 30
+$GrpCreds.Controls.Add($Script:BtnSignIn)
 
-$Script:ChkProbe = New-Object -TypeName System.Windows.Forms.CheckBox
-$Script:ChkProbe.Text = 'Probe Sched for other MMS conference IDs'
-$Script:ChkProbe.Location = New-Object -TypeName System.Drawing.Point -ArgumentList 830, 27
-$Script:ChkProbe.AutoSize = $true
-$Script:ChkProbe.Checked = $true
-$GrpCreds.Controls.Add($Script:ChkProbe)
+$Script:BtnDiscover = New-Object -TypeName System.Windows.Forms.Button
+$Script:BtnDiscover.Text = 'Discover IDs'
+$Script:BtnDiscover.Location = New-Object -TypeName System.Drawing.Point -ArgumentList 760, 56
+$Script:BtnDiscover.Size = New-Object -TypeName System.Drawing.Size -ArgumentList 110, 30
+$GrpCreds.Controls.Add($Script:BtnDiscover)
 
 $LblCustom = New-Object -TypeName System.Windows.Forms.Label
-$LblCustom.Text = 'Add conference ID manually (e.g. 2027atmoa):'
+$LblCustom.Text = 'Add ID manually (2027atmoa, midway):'
 $LblCustom.Location = New-Object -TypeName System.Drawing.Point -ArgumentList 12, 61
 $LblCustom.AutoSize = $true
 $GrpCreds.Controls.Add($LblCustom)
@@ -1285,14 +1887,28 @@ $Script:TxtCustom.Size = New-Object -TypeName System.Drawing.Size -ArgumentList 
 $GrpCreds.Controls.Add($Script:TxtCustom)
 
 $Script:BtnAddConf = New-Object -TypeName System.Windows.Forms.Button
-$Script:BtnAddConf.Text = 'Add and Check'
+$Script:BtnAddConf.Text = 'Add and Query'
 $Script:BtnAddConf.Location = New-Object -TypeName System.Drawing.Point -ArgumentList 460, 56
 $Script:BtnAddConf.Size = New-Object -TypeName System.Drawing.Size -ArgumentList 110, 27
 $GrpCreds.Controls.Add($Script:BtnAddConf)
 
+$Script:ChkPast = New-Object -TypeName System.Windows.Forms.CheckBox
+$Script:ChkPast.Text = 'Show past years'
+$Script:ChkPast.Location = New-Object -TypeName System.Drawing.Point -ArgumentList 600, 60
+$Script:ChkPast.AutoSize = $true
+$Script:ChkPast.Checked = $true
+$GrpCreds.Controls.Add($Script:ChkPast)
+
 # ---------- Conferences group ----------
+<#
+### Conference Inventory
+Display Conference, ID, Access, and Sessions columns with checkbox selection. Rows keep
+catalog insertion order, so new manual/discovered IDs appear at the end. Select All/None
+operate on visible rows; Show unavailable conferences includes Not queried and failed entries.
+Query Selected sits to the right of that visibility toggle and loads checked conferences.
+#>
 $GrpConf = New-Object -TypeName System.Windows.Forms.GroupBox
-$GrpConf.Text = 'Conferences You Can Access (check to filter sessions / download all)'
+$GrpConf.Text = 'Conferences'
 $GrpConf.Location = New-Object -TypeName System.Drawing.Point -ArgumentList 10, 104
 $GrpConf.Size = New-Object -TypeName System.Drawing.Size -ArgumentList 560, 330
 $GrpConf.Anchor = 'Top, Left'
@@ -1328,9 +1944,22 @@ $Script:ChkShowAll = New-Object -TypeName System.Windows.Forms.CheckBox
 $Script:ChkShowAll.Text = 'Show unavailable conferences'
 $Script:ChkShowAll.Location = New-Object -TypeName System.Drawing.Point -ArgumentList 210, 295
 $Script:ChkShowAll.AutoSize = $true
+$Script:ChkShowAll.Checked = $true
 $GrpConf.Controls.Add($Script:ChkShowAll)
 
+$Script:BtnQuery = New-Object -TypeName System.Windows.Forms.Button
+$Script:BtnQuery.Text = 'Query Selected'
+$Script:BtnQuery.Location = New-Object -TypeName System.Drawing.Point -ArgumentList 420, 290
+$Script:BtnQuery.Size = New-Object -TypeName System.Drawing.Size -ArgumentList 130, 28
+$GrpConf.Controls.Add($Script:BtnQuery)
+
 # ---------- Sessions group ----------
+<#
+### Loaded Sessions
+Display conference IDs and session titles with download checkboxes. The filter narrows
+displayed titles/IDs; Select All Shown checks visible rows, while Clear Selection clears
+all loaded session selections. The count label reports displayed, loaded, and checked totals.
+#>
 $GrpSess = New-Object -TypeName System.Windows.Forms.GroupBox
 $GrpSess.Text = 'Sessions (check the ones to download)'
 $GrpSess.Location = New-Object -TypeName System.Drawing.Point -ArgumentList 580, 104
@@ -1382,6 +2011,12 @@ $Script:LblSessCount.AutoSize = $true
 $GrpSess.Controls.Add($Script:LblSessCount)
 
 # ---------- Download options group ----------
+<#
+### Download Options and Actions
+Choose the content destination, browse/open it, omit Session Info.txt, or compare existing
+file hashes. Separate actions download checked sessions or every loaded session from checked
+accessible conferences. Cancel is enabled by busy-state handling, not by folder selection.
+#>
 $GrpDl = New-Object -TypeName System.Windows.Forms.GroupBox
 $GrpDl.Text = 'Download'
 $GrpDl.Location = New-Object -TypeName System.Drawing.Point -ArgumentList 10, 442
@@ -1429,12 +2064,14 @@ $Script:BtnDlSelected = New-Object -TypeName System.Windows.Forms.Button
 $Script:BtnDlSelected.Text = 'Download SELECTED Sessions'
 $Script:BtnDlSelected.Location = New-Object -TypeName System.Drawing.Point -ArgumentList 12, 62
 $Script:BtnDlSelected.Size = New-Object -TypeName System.Drawing.Size -ArgumentList 230, 36
+$Script:BtnDlSelected.Enabled = $false
 $GrpDl.Controls.Add($Script:BtnDlSelected)
 
 $Script:BtnDlAll = New-Object -TypeName System.Windows.Forms.Button
 $Script:BtnDlAll.Text = 'Download ALL Sessions of Checked Conferences'
 $Script:BtnDlAll.Location = New-Object -TypeName System.Drawing.Point -ArgumentList 250, 62
 $Script:BtnDlAll.Size = New-Object -TypeName System.Drawing.Size -ArgumentList 330, 36
+$Script:BtnDlAll.Enabled = $false
 $GrpDl.Controls.Add($Script:BtnDlAll)
 
 $Script:BtnCancel = New-Object -TypeName System.Windows.Forms.Button
@@ -1445,6 +2082,12 @@ $Script:BtnCancel.Enabled = $false
 $GrpDl.Controls.Add($Script:BtnCancel)
 
 # ---------- Progress / status / log ----------
+<#
+### Progress, Current Status, and Activity Log
+Provide session/conference work-item progress, a replaceable status label, and a read-only
+scrolling log. The log mirrors disk messages and expands vertically with the window.
+Progress counts completed work items rather than transferred bytes.
+#>
 $Script:PbMain = New-Object -TypeName System.Windows.Forms.ProgressBar
 $Script:PbMain.Location = New-Object -TypeName System.Drawing.Point -ArgumentList 10, 562
 $Script:PbMain.Size = New-Object -TypeName System.Drawing.Size -ArgumentList 1160, 20
@@ -1474,10 +2117,90 @@ $Script:Form.Controls.Add($Script:TxtLog)
 # ==================================================
 # MARK: Event Handlers
 # ==================================================
-# ---------- Re-Query Conferences ----------
-$Script:BtnQuery.Add_Click({ Invoke-ConferenceDiscovery })
+<#
+## Event Handlers
+### Purpose
+Connect controls to authentication, queries, visibility updates, downloads, and the window lifecycle.
+### Authentication
+Sign In verifies against the first checked conference or 2026atmoa. Only Authenticated
+mode activates the credential; success clears HTTP/schedule caches but retains loaded
+session objects. Editing username/password resets authentication and clears those caches.
+Download buttons are disabled until verified Sign In, and disabled again on credential edits.
+Every download job authenticates all distinct target conferences before writing session content.
+### Query and Selection Workflows
+Query Selected uses checked entries; Discover IDs performs discovery only. Manual queries
+normalize/validate an ID, append only new entries, preserve other results, and check the entry.
+Conference checks filter loaded sessions; session checks independently select download targets.
+### Visibility and Lifecycle
+Show past years changes visibility without network queries. Hiding non-manual past entries
+clears their conference/session selections while retaining loaded objects. Form Shown logs
+startup and displays the catalog only. Cancel stops the active operation, including pending
+HTTP work. Native window closing records shutdown and defers disposal until work unwinds;
+there is no PowerShell FormClosing callback to invoke after its pipeline has stopped.
+### Download Target Differences
+Selected-session downloads use all checked session models, even outside the current filter.
+Bulk conference downloads require checked accessible conferences, ignore the session text
+filter, and display a confirmation before starting the shared download-job function.
+#>
+# ---------- In-window Sign In ----------
+# Verify credentials for one conference; public fallback is not considered successful sign-in.
+$Script:BtnSignIn.Add_Click({
+        if ($Script:IsBusy) { return }
+        $NewCredential = Get-CurrentCredential
+        if (-not $NewCredential) {
+            Set-Status -Text 'Enter a username and password.'
+            return
+        }
+        Sync-ConferenceChecks
+        $SignInConf = @($Script:ConferenceCatalog | Where-Object { $_.Checked } | Select-Object -First 1)[0]
+        if (-not $SignInConf) { $SignInConf = Get-ConferenceInfo -ConfId '2026atmoa' }
+        $Script:CancelRequested = $false
+        Set-UiBusy -Busy $true
+        try {
+            Set-Status -Text ('Signing in to ' + $SignInConf.Name + ' ...')
+            $Connect = Connect-SchedConference -ConfId $SignInConf.Id -Type $SignInConf.Type -Credential $NewCredential
+            if (Test-CancellationRequested) { Set-Status -Text 'Sign-in cancelled.'; return }
+            if ($Connect.Success -and $Connect.Mode -eq 'Authenticated') {
+                $Script:Credential = $NewCredential
+                $Script:Sessions.Clear()
+                $Script:EventCache.Clear()
+                $Script:BtnSignIn.Text = 'Signed In'
+                Set-Status -Text ('Signed in to ' + $SignInConf.Name + ' as ' + $NewCredential.UserName)
+                Write-Log -Message ('Sign-in verified for ' + $SignInConf.Id)
+            }
+            else {
+                $Script:Sessions.Remove($SignInConf.Id)
+                Set-Status -Text ('Sign-in not verified for ' + $SignInConf.Name + ': ' + $Connect.Message)
+            }
+        }
+        catch {
+            Set-Status -Text ('Sign-in error: ' + $_.Exception.Message)
+        }
+        finally {
+            Set-UiBusy -Busy $false
+        }
+    })
 
-# ---------- Add custom conference ID and check it immediately ----------
+# ---------- Credential edits invalidate authentication ----------
+# Reset the credential/button and request caches without discarding the loaded session inventory.
+$CredentialChanged = {
+    $Script:Credential = $null
+    $Script:Sessions.Clear()
+    $Script:EventCache.Clear()
+    $Script:BtnSignIn.Text = 'Sign In'
+    $Script:BtnDlSelected.Enabled = $false
+    $Script:BtnDlAll.Enabled = $false
+}
+$Script:TxtUser.Add_TextChanged($CredentialChanged)
+$Script:TxtPass.Add_TextChanged($CredentialChanged)
+
+# ---------- Query selected conferences / discover IDs ----------
+# Keep explicit schedule queries separate from candidate discovery to avoid automatic bulk requests.
+$Script:BtnQuery.Add_Click({ Invoke-ConferenceDiscovery -SelectedOnly })
+$Script:BtnDiscover.Add_Click({ Invoke-ConferenceDiscovery -DiscoverOnly })
+
+# ---------- Append or reuse a manual ID, select it, and query it ----------
+# Refresh only this ID; keep the existing catalog order and other conferences' loaded sessions.
 $Script:BtnAddConf.Add_Click({
         if ($Script:IsBusy) { return }
         $NewId = $Script:TxtCustom.Text.Trim().ToLower()
@@ -1488,13 +2211,21 @@ $Script:BtnAddConf.Add_Click({
         $Conf = Get-ConferenceInfo -ConfId $NewId
         if (-not $Conf) {
             $Conf = New-ConferenceEntry -Id $NewId -Name ('MMS ' + $NewId + ' (manual)') -Type 'Discovered'
+            # Assign the current year to new yearless IDs; the Manual flag separately overrides visibility.
+            if ($Conf.Year -eq 0) { $Conf.Year = (Get-Date).Year }
             $Script:ConferenceCatalog.Add($Conf)
+        }
+        $Conf.Manual = $true
+        Sync-ConferenceChecks
+        $Conf.Checked = $true
+        foreach ($Item in $Script:LvConf.Items) {
+            if ($Item.Tag.Id -eq $NewId) { $Item.Checked = $true }
         }
         $Script:TxtCustom.Text = ''
 
         Set-UiBusy -Busy $true
         try {
-            $Script:Credential = Get-CurrentCredential
+            $Script:CancelRequested = $false
             for ($Index = $Script:SessionList.Count - 1; $Index -ge 0; $Index--) {
                 if ($Script:SessionList[$Index].ConfId -eq $NewId) { $Script:SessionList.RemoveAt($Index) }
             }
@@ -1509,6 +2240,7 @@ $Script:BtnAddConf.Add_Click({
     })
 
 # ---------- Conference checks drive the session list ----------
+# Checkbox changes update the loaded-session display; they do not query Sched by themselves.
 $Script:LvConf.Add_ItemChecked({
         if ($Script:SuppressEvents) { return }
         Sync-ConferenceChecks
@@ -1517,7 +2249,7 @@ $Script:LvConf.Add_ItemChecked({
 
 $BtnConfAll.Add_Click({
         $Script:SuppressEvents = $true
-        foreach ($Item in $Script:LvConf.Items) { if ([string]$Item.Tag.Access -like 'Yes*') { $Item.Checked = $true } }
+        foreach ($Item in $Script:LvConf.Items) { $Item.Checked = $true }
         $Script:SuppressEvents = $false
         Sync-ConferenceChecks
         Update-SessionListView
@@ -1533,7 +2265,39 @@ $BtnConfNone.Add_Click({
 
 $Script:ChkShowAll.Add_CheckedChanged({ Update-ConferenceListView })
 
+# ---------- Show past years visibility ----------
+# Toggle display only; retain past results and preserve manually queried entries and their selections.
+$Script:ChkPast.Add_CheckedChanged({
+        if ($Script:ChkPast.Checked) {
+            # Redisplay older catalog/session objects without querying or refreshing their schedules.
+            Update-ConferenceListView
+            Update-SessionListView
+        }
+        else {
+            # Clear selections for year-hidden non-manual conferences/sessions, keeping loaded results.
+            $Script:SuppressEvents = $true
+            foreach ($Item in $Script:LvConf.Items) {
+                if (Test-IsHiddenConference -Conf $Item.Tag) { $Item.Checked = $false }
+            }
+            foreach ($Item in $Script:LvSess.Items) {
+                $ItemConf = Get-ConferenceInfo -ConfId $Item.Tag.ConfId
+                if ($ItemConf -and (Test-IsHiddenConference -Conf $ItemConf)) { $Item.Checked = $false }
+            }
+            $Script:SuppressEvents = $false
+            Sync-ConferenceChecks
+            Sync-SessionChecks
+            foreach ($Sess in $Script:SessionList) {
+                $SessConf = Get-ConferenceInfo -ConfId $Sess.ConfId
+                if ($SessConf -and (Test-IsHiddenConference -Conf $SessConf)) { $Sess.Checked = $false }
+            }
+            Update-ConferenceListView
+            Update-SessionListView
+            Set-Status -Text 'Past years hidden. Their results are kept.'
+        }
+    })
+
 # ---------- Session list helpers ----------
+# Text changes only filter display; Select All Shown checks visible rows and Clear Selection clears all.
 $Script:TxtFilter.Add_TextChanged({ Update-SessionListView })
 
 $Script:LvSess.Add_ItemChecked({
@@ -1559,6 +2323,7 @@ $BtnSessNone.Add_Click({
     })
 
 # ---------- Browse / Open folder ----------
+# Browse selects a base content destination; Open Folder requires an already existing directory.
 $Script:BtnBrowse.Add_Click({
         $Dialog = New-Object -TypeName System.Windows.Forms.FolderBrowserDialog
         $Dialog.Description = 'Select the base download folder'
@@ -1573,6 +2338,7 @@ $BtnOpenFolder.Add_Click({
     })
 
 # ---------- Download SELECTED sessions ----------
+# Collect all checked session models, including selections outside the current display filter.
 $Script:BtnDlSelected.Add_Click({
         if ($Script:IsBusy) { return }
 
@@ -1586,6 +2352,7 @@ $Script:BtnDlSelected.Add_Click({
     })
 
 # ---------- Download ALL sessions of checked conferences ----------
+# Collect loaded sessions from eligible checked conferences and require bulk-download confirmation.
 $Script:BtnDlAll.Add_Click({
         if ($Script:IsBusy) { return }
 
@@ -1609,22 +2376,21 @@ $Script:BtnDlAll.Add_Click({
     })
 
 # ---------- Cancel ----------
+# Stop active work, including the cancellable request worker, while keeping the main window open.
 $Script:BtnCancel.Add_Click({
         $Script:CancelRequested = $true
         Write-Log -Message 'Cancel requested. Stopping after the current operation ...' -Level 'WARN'
     })
 
 # ---------- Form events ----------
-$Script:Form.Add_FormClosing({
-        $Script:CancelRequested = $true
-    })
+# Native form closing tracks shutdown without invoking a stopped PowerShell pipeline.
 
-# Automatically discover conferences as soon as the window opens
+# On initial display, log startup and show the preloaded catalog without authentication or network queries.
 $Script:Form.Add_Shown({
         Write-Log -Message ('MMS Session Content Downloader started. Log file: ' + $Script:LogFile)
         Update-ConferenceListView
         $Script:Form.Activate()
-        Invoke-ConferenceDiscovery
+        Set-Status -Text 'Public content'
     })
 # ==================================================
 # ^^^^^ Event Handlers ^^^^^
@@ -1633,15 +2399,30 @@ $Script:Form.Add_Shown({
 # ==================================================
 # MARK: Launch GUI
 # ==================================================
-$StartupCred = Show-CredentialPrompt
-if ($StartupCred) {
-    $Script:TxtUser.Text = $StartupCred.UserName
-    $Script:TxtPass.Text = $StartupCred.GetNetworkCredential().Password
+<#
+## Launch GUI
+### Purpose
+Start the main form's modal message loop after all controls and event handlers are ready.
+### Startup Behavior
+`ShowDialog()` raises the Shown handler, which displays the catalog and Public content
+status. No legacy credential prompt, conference discovery, or schedule query is called here.
+Authentication and requests occur only when their corresponding main-window actions run.
+### Cleanup
+The modal loop is protected by try/finally and treats PipelineStoppedException as shutdown.
+Dispose the form even if execution is interrupted. Native closing defers disposal while an
+operation is active, allowing request/partial-file cleanup to unwind before the dialog exits.
+This section does not start exports; cancelled download jobs skip their result export.
+#>
+try {
+    [void]$Script:Form.ShowDialog()
 }
-$StartupCred = $null
-
-[void]$Script:Form.ShowDialog()
-$Script:Form.Dispose()
+catch [System.Management.Automation.PipelineStoppedException] {
+}
+finally {
+    $Script:CancelRequested = $true
+    if ($Script:Form -and -not $Script:Form.IsDisposed) { $Script:Form.Dispose() }
+}
 # ==================================================
 # ^^^^^ Launch GUI ^^^^^
 # ==================================================
+
